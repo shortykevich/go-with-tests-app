@@ -1,10 +1,12 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"sync"
 	"testing"
 )
@@ -114,13 +116,33 @@ func TestLeague(t *testing.T) {
 	storage := &SpyStorage{}
 	server := NewPlayersScoreServer(storage)
 
+	tt := []Player{
+		{
+			Name: "Bill",
+			Wins: 10,
+		},
+		{
+			Name: "Alice",
+			Wins: 15,
+		},
+	}
+
 	t.Run("it return 200 on /league", func(t *testing.T) {
 		req, _ := http.NewRequest(http.MethodGet, "/league", nil)
 		resp := httptest.NewRecorder()
 
 		server.ServeHTTP(resp, req)
 
+		var got []Player
+
+		err := json.NewDecoder(resp.Body).Decode(&got)
+
+		if err != nil {
+			t.Fatalf("Unable to parse response from server %q into slice of Player, '%v'", resp.Body, err)
+		}
+
 		assertStatus(t, resp.Code, http.StatusOK)
+		assertJsons(t, got, tt)
 	})
 }
 
@@ -132,6 +154,13 @@ func newPostRequest(name string) *http.Request {
 func newGetScoreRequest(name string) *http.Request {
 	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/players/%s", name), nil)
 	return req
+}
+
+func assertJsons(t testing.TB, got, want []Player) {
+	t.Helper()
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("json is wrong, got %q, want %q", got, want)
+	}
 }
 
 func assertResponseBody(t testing.TB, got, want string) {

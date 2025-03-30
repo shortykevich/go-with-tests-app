@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -17,8 +19,9 @@ type PlayersScoreServer struct {
 }
 
 func NewPlayersScoreServer(storage PlayersStorage) *PlayersScoreServer {
-	serv := new(PlayersScoreServer)
-	serv.Storage = storage
+	serv := &PlayersScoreServer{
+		Storage: storage,
+	}
 
 	router := http.NewServeMux()
 	router.Handle("/league", http.HandlerFunc(serv.leagueHandler))
@@ -46,6 +49,21 @@ func (p *PlayersScoreServer) getScore(w http.ResponseWriter, name string) {
 }
 
 func (p *PlayersScoreServer) leagueHandler(w http.ResponseWriter, r *http.Request) {
+	tt := []Player{
+		{
+			Name: "Bill",
+			Wins: 10,
+		},
+		{
+			Name: "Alice",
+			Wins: 15,
+		},
+	}
+	err := json.NewEncoder(w).Encode(tt)
+	if err != nil {
+		log.Printf("Unable to parse input: %v", err)
+		return
+	}
 	w.WriteHeader(http.StatusOK)
 }
 

@@ -12,6 +12,11 @@ type InMemStorage struct {
 	winCalls []string
 }
 
+type Player struct {
+	Name string
+	Wins int
+}
+
 func NewInMemoryStorage() *InMemStorage {
 	return &InMemStorage{
 		Scores:   map[string]int{},
