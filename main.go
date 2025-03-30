@@ -8,7 +8,7 @@ import (
 const port = ":5000"
 
 func main() {
-	handler := &PlayersScoreServer{Storage: NewInMemoryStorage()}
+	handler := NewPlayersScoreServer(NewInMemoryStorage())
 
 	log.Printf("Listening on port %v", port)
 	log.Fatal(http.ListenAndServe(port, handler))

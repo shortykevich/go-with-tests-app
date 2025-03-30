@@ -4,21 +4,22 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
-	"reflect"
+	"slices"
 	"sync"
 	"testing"
 )
 
 type SpyStorage struct {
 	mu       sync.Mutex
-	Scores   map[string]int
+	scores   map[string]int
 	winCalls []string
 }
 
 func (s *SpyStorage) GetPlayerScore(name string) (int, error) {
-	v, ok := s.Scores[name]
+	v, ok := s.scores[name]
 	if !ok {
 		return 0, errors.New(fmt.Sprintf("There no player with '%s' name!\n", name))
 	}
@@ -33,13 +34,21 @@ func (s *SpyStorage) PostPlayerScore(name string) error {
 func (s *SpyStorage) RecordWin(name string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.Scores[name]++
+	s.scores[name]++
 	s.winCalls = append(s.winCalls, name)
+}
+
+func (s *SpyStorage) GetLeagueTable() ([]Player, error) {
+	league := make([]Player, 0, len(s.scores))
+	for name, wins := range s.scores {
+		league = append(league, Player{Name: name, Wins: wins})
+	}
+	return league, nil
 }
 
 func TestPlayersScores(t *testing.T) {
 	storage := &SpyStorage{
-		Scores: map[string]int{
+		scores: map[string]int{
 			"Pepper": 20,
 			"Floyd":  10,
 		},
@@ -88,7 +97,7 @@ func TestPlayersScores(t *testing.T) {
 
 func TestStoreWins(t *testing.T) {
 	storage := &SpyStorage{
-		Scores:   map[string]int{},
+		scores:   map[string]int{},
 		winCalls: []string{},
 	}
 	server := NewPlayersScoreServer(storage)
@@ -113,36 +122,26 @@ func TestStoreWins(t *testing.T) {
 }
 
 func TestLeague(t *testing.T) {
-	storage := &SpyStorage{}
-	server := NewPlayersScoreServer(storage)
-
-	tt := []Player{
-		{
-			Name: "Bill",
-			Wins: 10,
-		},
-		{
-			Name: "Alice",
-			Wins: 15,
+	storage := &SpyStorage{
+		scores: map[string]int{
+			"Alice": 15,
+			"Bill":  10,
 		},
 	}
+	server := NewPlayersScoreServer(storage)
 
-	t.Run("it return 200 on /league", func(t *testing.T) {
-		req, _ := http.NewRequest(http.MethodGet, "/league", nil)
+	t.Run("get request on /league", func(t *testing.T) {
+		req := newLeagueRequest(t)
 		resp := httptest.NewRecorder()
 
 		server.ServeHTTP(resp, req)
 
-		var got []Player
-
-		err := json.NewDecoder(resp.Body).Decode(&got)
-
-		if err != nil {
-			t.Fatalf("Unable to parse response from server %q into slice of Player, '%v'", resp.Body, err)
-		}
+		want, _ := server.storage.GetLeagueTable()
+		got := getLeagueFromResponse(t, resp.Body)
 
 		assertStatus(t, resp.Code, http.StatusOK)
-		assertJsons(t, got, tt)
+		assertLeague(t, got, want)
+		assertContentType(t, *resp, jsonContentType)
 	})
 }
 
@@ -156,10 +155,33 @@ func newGetScoreRequest(name string) *http.Request {
 	return req
 }
 
-func assertJsons(t testing.TB, got, want []Player) {
+func newLeagueRequest(t testing.TB) *http.Request {
+	req, err := http.NewRequest(http.MethodGet, "/league", nil)
+	if err != nil {
+		t.Fatalf("Request failed with error: %v", err)
+	}
+	return req
+}
+
+func getLeagueFromResponse(t testing.TB, body io.Reader) (league []Player) {
 	t.Helper()
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("json is wrong, got %q, want %q", got, want)
+	if err := json.NewDecoder(body).Decode(&league); err != nil {
+		t.Fatalf("Unable to parse response from server %q into slice of Player, '%v'", body, err)
+	}
+	return
+}
+
+func assertContentType(t testing.TB, response httptest.ResponseRecorder, want string) {
+	t.Helper()
+	if response.Result().Header.Get("content-type") != want {
+		t.Errorf("response did not have content-type of %v, got %v", want, response.Result().Header)
+	}
+}
+
+func assertLeague(t testing.TB, got, want []Player) {
+	t.Helper()
+	if !slices.Equal(got, want) {
+		t.Errorf("players table is wrong, got %q, want %q", got, want)
 	}
 }
 

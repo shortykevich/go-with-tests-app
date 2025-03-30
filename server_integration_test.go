@@ -7,20 +7,31 @@ import (
 )
 
 func TestRecordingWinsAndRetrievingThem(t *testing.T) {
-	storage := &InMemStorage{
-		Scores:   map[string]int{},
-		winCalls: []string{},
-	}
-	server := NewPlayersScoreServer(storage)
+	store := NewInMemoryStorage()
+	server := NewPlayersScoreServer(store)
 	player := "Pepper"
 
 	server.ServeHTTP(httptest.NewRecorder(), newPostRequest(player))
 	server.ServeHTTP(httptest.NewRecorder(), newPostRequest(player))
 	server.ServeHTTP(httptest.NewRecorder(), newPostRequest(player))
 
-	response := httptest.NewRecorder()
-	server.ServeHTTP(response, newGetScoreRequest(player))
+	t.Run("get score", func(t *testing.T) {
+		response := httptest.NewRecorder()
+		server.ServeHTTP(response, newGetScoreRequest(player))
+		assertStatus(t, response.Code, http.StatusOK)
 
-	assertStatus(t, response.Code, http.StatusOK)
-	assertResponseBody(t, response.Body.String(), "3")
+		assertResponseBody(t, response.Body.String(), "3")
+	})
+
+	t.Run("get league", func(t *testing.T) {
+		response := httptest.NewRecorder()
+		server.ServeHTTP(response, newLeagueRequest(t))
+		assertStatus(t, response.Code, http.StatusOK)
+
+		got := getLeagueFromResponse(t, response.Body)
+		want := []Player{
+			{"Pepper", 3},
+		}
+		assertLeague(t, got, want)
+	})
 }

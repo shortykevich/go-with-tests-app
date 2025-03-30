@@ -8,19 +8,22 @@ import (
 	"strings"
 )
 
+const jsonContentType = "application/json"
+
 type PlayersStorage interface {
 	GetPlayerScore(string) (int, error)
 	PostPlayerScore(string) error
+	GetLeagueTable() ([]Player, error)
 }
 
 type PlayersScoreServer struct {
-	Storage PlayersStorage
+	storage PlayersStorage
 	http.Handler
 }
 
 func NewPlayersScoreServer(storage PlayersStorage) *PlayersScoreServer {
 	serv := &PlayersScoreServer{
-		Storage: storage,
+		storage: storage,
 	}
 
 	router := http.NewServeMux()
@@ -33,7 +36,7 @@ func NewPlayersScoreServer(storage PlayersStorage) *PlayersScoreServer {
 }
 
 func (p *PlayersScoreServer) postWin(w http.ResponseWriter, name string) {
-	if err := p.Storage.PostPlayerScore(name); err != nil {
+	if err := p.storage.PostPlayerScore(name); err != nil {
 		w.Write([]byte(err.Error()))
 		return
 	}
@@ -41,7 +44,7 @@ func (p *PlayersScoreServer) postWin(w http.ResponseWriter, name string) {
 }
 
 func (p *PlayersScoreServer) getScore(w http.ResponseWriter, name string) {
-	v, err := p.Storage.GetPlayerScore(name)
+	v, err := p.storage.GetPlayerScore(name)
 	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
 	}
@@ -49,22 +52,19 @@ func (p *PlayersScoreServer) getScore(w http.ResponseWriter, name string) {
 }
 
 func (p *PlayersScoreServer) leagueHandler(w http.ResponseWriter, r *http.Request) {
-	tt := []Player{
-		{
-			Name: "Bill",
-			Wins: 10,
-		},
-		{
-			Name: "Alice",
-			Wins: 15,
-		},
-	}
-	err := json.NewEncoder(w).Encode(tt)
+	w.Header().Set("content-type", jsonContentType)
+	players, err := p.storage.GetLeagueTable()
 	if err != nil {
-		log.Printf("Unable to parse input: %v", err)
+		log.Printf("Couldn't get Players table. Error occurred: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	w.WriteHeader(http.StatusOK)
+	err = json.NewEncoder(w).Encode(players)
+	if err != nil {
+		log.Printf("Unable to parse Players table. Error occurred: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 }
 
 func (p *PlayersScoreServer) playersHandler(w http.ResponseWriter, r *http.Request) {
