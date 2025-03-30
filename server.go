@@ -13,33 +13,49 @@ type PlayersStorage interface {
 
 type PlayersScoreServer struct {
 	Storage PlayersStorage
+	http.Handler
 }
 
-func (p *PlayersScoreServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodPost:
-		p.addWin(w, r)
-	case http.MethodGet:
-		p.getScore(w, r)
-	}
+func NewPlayersScoreServer(storage PlayersStorage) *PlayersScoreServer {
+	serv := new(PlayersScoreServer)
+	serv.Storage = storage
+
+	router := http.NewServeMux()
+	router.Handle("/league", http.HandlerFunc(serv.leagueHandler))
+	router.Handle("/players/", http.HandlerFunc(serv.playersHandler))
+
+	serv.Handler = router
+
+	return serv
 }
 
-func (p *PlayersScoreServer) addWin(w http.ResponseWriter, r *http.Request) {
-	player := strings.TrimPrefix(r.URL.Path, "/players/")
-
-	if err := p.Storage.PostPlayerScore(player); err != nil {
+func (p *PlayersScoreServer) postWin(w http.ResponseWriter, name string) {
+	if err := p.Storage.PostPlayerScore(name); err != nil {
 		w.Write([]byte(err.Error()))
 		return
 	}
 	w.WriteHeader(http.StatusAccepted)
 }
 
-func (p *PlayersScoreServer) getScore(w http.ResponseWriter, r *http.Request) {
-	player := strings.TrimPrefix(r.URL.Path, "/players/")
-
-	v, err := p.Storage.GetPlayerScore(player)
+func (p *PlayersScoreServer) getScore(w http.ResponseWriter, name string) {
+	v, err := p.Storage.GetPlayerScore(name)
 	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
 	}
 	w.Write([]byte(strconv.Itoa(v)))
+}
+
+func (p *PlayersScoreServer) leagueHandler(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+}
+
+func (p *PlayersScoreServer) playersHandler(w http.ResponseWriter, r *http.Request) {
+	player := strings.TrimPrefix(r.URL.Path, "/players/")
+
+	switch r.Method {
+	case http.MethodPost:
+		p.postWin(w, player)
+	case http.MethodGet:
+		p.getScore(w, player)
+	}
 }

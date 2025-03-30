@@ -43,7 +43,7 @@ func TestPlayersScores(t *testing.T) {
 		},
 		winCalls: []string{},
 	}
-	server := &PlayersScoreServer{Storage: storage}
+	server := NewPlayersScoreServer(storage)
 
 	tests := []struct {
 		name               string
@@ -89,7 +89,7 @@ func TestStoreWins(t *testing.T) {
 		Scores:   map[string]int{},
 		winCalls: []string{},
 	}
-	server := &PlayersScoreServer{Storage: storage}
+	server := NewPlayersScoreServer(storage)
 
 	t.Run("Records wins when POST", func(t *testing.T) {
 		player := "Pepper"
@@ -107,6 +107,20 @@ func TestStoreWins(t *testing.T) {
 		if storage.winCalls[0] != player {
 			t.Errorf("did not store correct winner got %q want %q", storage.winCalls[0], player)
 		}
+	})
+}
+
+func TestLeague(t *testing.T) {
+	storage := &SpyStorage{}
+	server := NewPlayersScoreServer(storage)
+
+	t.Run("it return 200 on /league", func(t *testing.T) {
+		req, _ := http.NewRequest(http.MethodGet, "/league", nil)
+		resp := httptest.NewRecorder()
+
+		server.ServeHTTP(resp, req)
+
+		assertStatus(t, resp.Code, http.StatusOK)
 	})
 }
 

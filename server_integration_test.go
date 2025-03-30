@@ -11,7 +11,7 @@ func TestRecordingWinsAndRetrievingThem(t *testing.T) {
 		Scores:   map[string]int{},
 		winCalls: []string{},
 	}
-	server := &PlayersScoreServer{Storage: storage}
+	server := NewPlayersScoreServer(storage)
 	player := "Pepper"
 
 	server.ServeHTTP(httptest.NewRecorder(), newPostRequest(player))
