@@ -5,11 +5,15 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/shortykevich/go-with-tests-app/db/inmem"
+	fss "github.com/shortykevich/go-with-tests-app/db/fs_storage"
+	"github.com/shortykevich/go-with-tests-app/db/league"
 )
 
 func TestRecordingWinsAndRetrievingThem(t *testing.T) {
-	store := inmem.NewInMemoryStorage()
+	db, cleanDatabase := fss.CreateTempFile(t, "[]")
+	defer cleanDatabase()
+	store := &fss.FileSystemPlayerStorage{Db: db}
+
 	server := NewPlayersScoreServer(store)
 	player := "Pepper"
 
@@ -31,7 +35,7 @@ func TestRecordingWinsAndRetrievingThem(t *testing.T) {
 		AssertStatus(t, response.Code, http.StatusOK)
 
 		got := GetLeagueFromResponse(t, response.Body)
-		want := []inmem.Player{
+		want := []league.Player{
 			{Name: "Pepper", Wins: 3},
 		}
 		AssertLeague(t, got, want)

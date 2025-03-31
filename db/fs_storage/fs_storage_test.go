@@ -1,47 +1,97 @@
 package fss
 
 import (
-	"strings"
+	"slices"
 	"testing"
 
-	"github.com/shortykevich/go-with-tests-app/db/inmem"
-	"github.com/shortykevich/go-with-tests-app/webserver"
+	"github.com/shortykevich/go-with-tests-app/db/league"
 )
 
 func TestFileSystemStorage(t *testing.T) {
 	t.Run("league from a reader", func(t *testing.T) {
-		db := strings.NewReader(`[
+		db, cleanDatabase := CreateTempFile(t, `[
 			{"Name": "Cleo", "Wins": 10},
 			{"Name": "Chris", "Wins": 33}]`)
+		defer cleanDatabase()
 
-		store := FileSystemPlayerStorage{db: db}
+		store := FileSystemPlayerStorage{Db: db}
 
 		got, err := store.GetLeagueTable()
 		if err != nil {
 			t.Fatal(err)
 		}
-		want := []inmem.Player{
+		want := league.League{
 			{Name: "Cleo", Wins: 10},
 			{Name: "Chris", Wins: 33},
 		}
-		webserver.AssertLeague(t, got, want)
+		if !slices.Equal(got, want) {
+			t.Errorf("players table is wrong, got %q, want %q", got, want)
+		}
 
 		got, err = store.GetLeagueTable()
 		if err != nil {
 			t.Fatal(err)
 		}
-		webserver.AssertLeague(t, got, want)
+		if !slices.Equal(got, want) {
+			t.Errorf("players table is wrong, got %q, want %q", got, want)
+		}
+
 	})
+
 	t.Run("get player score", func(t *testing.T) {
-		db := strings.NewReader(`[
+		db, cleanDatabase := CreateTempFile(t, `[
 			{"Name": "Cleo", "Wins": 10},
 			{"Name": "Chris", "Wins": 33}]`)
+		defer cleanDatabase()
 
-		store := FileSystemPlayerStorage{db: db}
+		store := FileSystemPlayerStorage{Db: db}
 
-		got, _ := store.GetPlayerScore("Chris")
+		got, err := store.GetPlayerScore("Chris")
+		if err != nil {
+			t.Fatal(err)
+		}
 		want := 33
 
+		AssertPlayerScore(t, got, want)
+	})
+
+	t.Run("store wins for existing players", func(t *testing.T) {
+		db, cleanDatabase := CreateTempFile(t, `[
+			{"Name": "Cleo", "Wins": 10},
+			{"Name": "Chris", "Wins": 33}]`)
+		defer cleanDatabase()
+
+		store := FileSystemPlayerStorage{Db: db}
+
+		err := store.PostPlayerScore("Chris")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		got, err := store.GetPlayerScore("Chris")
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := 34
+
+		AssertPlayerScore(t, got, want)
+	})
+
+	t.Run("store wins for new players", func(t *testing.T) {
+		db, cleanDatabase := CreateTempFile(t, `[
+			{"Name": "Cleo", "Wins": 10},
+			{"Name": "Chris", "Wins": 33}]`)
+		defer cleanDatabase()
+
+		store := FileSystemPlayerStorage{Db: db}
+
+		store.PostPlayerScore("Pepper")
+
+		got, err := store.GetPlayerScore("Pepper")
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := 1
 		AssertPlayerScore(t, got, want)
 	})
 }

@@ -1,22 +1,50 @@
 package fss
 
 import (
+	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
+	"os"
+	"sync"
+	"testing"
 
-	"github.com/shortykevich/go-with-tests-app/db/inmem"
-	"github.com/shortykevich/go-with-tests-app/pkg/jsontuil"
+	"github.com/shortykevich/go-with-tests-app/db/league"
 )
 
 type FileSystemPlayerStorage struct {
-	db io.ReadSeeker
+	mu sync.Mutex
+	Db io.ReadWriteSeeker
 }
 
-// TODO: PostPlayerScore(player string) error
-// TODO: RecordWin(player string)
+func NewFSPlayerStorage(db *os.File) *FileSystemPlayerStorage {
+	storage := &FileSystemPlayerStorage{Db: db}
+	storage.Db.Write([]byte("[]"))
+	return storage
+}
 
-func (f *FileSystemPlayerStorage) GetLeagueTable() ([]inmem.Player, error) {
-	f.db.Seek(0, io.SeekStart)
-	league, err := jsontuil.NewLeagueFromReader(f.db)
+func (f *FileSystemPlayerStorage) PostPlayerScore(player string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	leag, err := f.getLeague()
+	if err != nil {
+		return err
+	}
+
+	if p := leag.Find(player); p != nil {
+		p.Wins++
+	} else {
+		leag = append(leag, league.Player{Name: player, Wins: 1})
+	}
+
+	f.Db.Seek(0, io.SeekStart) // To always write from the beginning
+	json.NewEncoder(f.Db).Encode(leag)
+	return nil
+}
+
+func (f *FileSystemPlayerStorage) GetLeagueTable() (league.League, error) {
+	league, err := f.getLeague()
 	if err != nil {
 		return nil, err
 	}
@@ -24,9 +52,40 @@ func (f *FileSystemPlayerStorage) GetLeagueTable() ([]inmem.Player, error) {
 }
 
 func (f *FileSystemPlayerStorage) GetPlayerScore(player string) (int, error) {
-	score, err := jsontuil.GetPlayerScoreFromReader(f.db, player)
+	score, err := f.getLeague()
 	if err != nil {
 		return 0, err
 	}
-	return score, nil
+	if p := score.Find(player); p != nil {
+		return p.Wins, nil
+	}
+	return 0, errors.New(fmt.Sprintf("Requested player '%s' is missing", player))
+}
+
+func (f *FileSystemPlayerStorage) getLeague() (league.League, error) {
+	f.Db.Seek(0, io.SeekStart) // To always read from the beginning
+	var leag league.League
+	err := json.NewDecoder(f.Db).Decode(&leag)
+
+	if err != nil {
+		err = fmt.Errorf("problem parsing league: %v", err)
+	}
+	return leag, err
+}
+
+func CreateTempFile(t testing.TB, initalData string) (io.ReadWriteSeeker, func()) {
+	t.Helper()
+
+	tmpfile, err := os.CreateTemp("", "db")
+	if err != nil {
+		t.Fatalf("could not create temp file: %v", err)
+	}
+
+	tmpfile.Write([]byte(initalData))
+	removeFile := func() {
+		tmpfile.Close()
+		os.Remove(tmpfile.Name())
+	}
+
+	return tmpfile, removeFile
 }

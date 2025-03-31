@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/shortykevich/go-with-tests-app/db/inmem"
+	"github.com/shortykevich/go-with-tests-app/db/league"
 )
 
 const jsonContentType = "application/json"
@@ -15,7 +15,7 @@ const jsonContentType = "application/json"
 type PlayersStorage interface {
 	GetPlayerScore(string) (int, error)
 	PostPlayerScore(string) error
-	GetLeagueTable() ([]inmem.Player, error)
+	GetLeagueTable() (league.League, error)
 }
 
 type PlayersScoreServer struct {
@@ -56,14 +56,15 @@ func (p *PlayersScoreServer) getScore(w http.ResponseWriter, name string) {
 func (p *PlayersScoreServer) leagueHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("content-type", jsonContentType)
 	players, err := p.storage.GetLeagueTable()
+
 	if err != nil {
-		log.Printf("Couldn't get Players table. Error occurred: %v", err)
+		log.Printf("Couldn't get Players table. Error occurred. %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	err = json.NewEncoder(w).Encode(players)
 	if err != nil {
-		log.Printf("Unable to parse Players table. Error occurred: %v", err)
+		log.Printf("Unable to parse Players table. Error occurred. %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

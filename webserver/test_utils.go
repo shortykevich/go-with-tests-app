@@ -11,7 +11,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/shortykevich/go-with-tests-app/db/inmem"
+	"github.com/shortykevich/go-with-tests-app/db/league"
 )
 
 type SpyStorage struct {
@@ -40,12 +40,12 @@ func (s *SpyStorage) RecordWin(name string) {
 	s.winCalls = append(s.winCalls, name)
 }
 
-func (s *SpyStorage) GetLeagueTable() ([]inmem.Player, error) {
-	league := make([]inmem.Player, 0, len(s.scores))
+func (s *SpyStorage) GetLeagueTable() (league.League, error) {
+	leag := make([]league.Player, 0, len(s.scores))
 	for name, wins := range s.scores {
-		league = append(league, inmem.Player{Name: name, Wins: wins})
+		leag = append(leag, league.Player{Name: name, Wins: wins})
 	}
-	return league, nil
+	return leag, nil
 }
 
 func NewPostRequest(name string) *http.Request {
@@ -66,7 +66,7 @@ func NewLeagueRequest(t testing.TB) *http.Request {
 	return req
 }
 
-func GetLeagueFromResponse(t testing.TB, body io.Reader) (league []inmem.Player) {
+func GetLeagueFromResponse(t testing.TB, body io.Reader) (league []league.Player) {
 	t.Helper()
 	if err := json.NewDecoder(body).Decode(&league); err != nil {
 		t.Fatalf("Unable to parse response from server %q into slice of Player, '%v'", body, err)
@@ -81,7 +81,7 @@ func AssertContentType(t testing.TB, response httptest.ResponseRecorder, want st
 	}
 }
 
-func AssertLeague(t testing.TB, got, want []inmem.Player) {
+func AssertLeague(t testing.TB, got, want []league.Player) {
 	t.Helper()
 	if !slices.Equal(got, want) {
 		t.Errorf("players table is wrong, got %q, want %q", got, want)
