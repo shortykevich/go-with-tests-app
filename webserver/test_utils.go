@@ -12,7 +12,6 @@ import (
 	"testing"
 
 	"github.com/shortykevich/go-with-tests-app/db/inmem"
-	localdb "github.com/shortykevich/go-with-tests-app/db/inmem"
 )
 
 type SpyStorage struct {
@@ -41,25 +40,25 @@ func (s *SpyStorage) RecordWin(name string) {
 	s.winCalls = append(s.winCalls, name)
 }
 
-func (s *SpyStorage) GetLeagueTable() ([]localdb.Player, error) {
-	league := make([]localdb.Player, 0, len(s.scores))
+func (s *SpyStorage) GetLeagueTable() ([]inmem.Player, error) {
+	league := make([]inmem.Player, 0, len(s.scores))
 	for name, wins := range s.scores {
-		league = append(league, localdb.Player{Name: name, Wins: wins})
+		league = append(league, inmem.Player{Name: name, Wins: wins})
 	}
 	return league, nil
 }
 
-func newPostRequest(name string) *http.Request {
+func NewPostRequest(name string) *http.Request {
 	req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/players/%s", name), nil)
 	return req
 }
 
-func newGetScoreRequest(name string) *http.Request {
+func NewGetScoreRequest(name string) *http.Request {
 	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/players/%s", name), nil)
 	return req
 }
 
-func newLeagueRequest(t testing.TB) *http.Request {
+func NewLeagueRequest(t testing.TB) *http.Request {
 	req, err := http.NewRequest(http.MethodGet, "/league", nil)
 	if err != nil {
 		t.Fatalf("Request failed with error: %v", err)
@@ -67,7 +66,7 @@ func newLeagueRequest(t testing.TB) *http.Request {
 	return req
 }
 
-func getLeagueFromResponse(t testing.TB, body io.Reader) (league []inmem.Player) {
+func GetLeagueFromResponse(t testing.TB, body io.Reader) (league []inmem.Player) {
 	t.Helper()
 	if err := json.NewDecoder(body).Decode(&league); err != nil {
 		t.Fatalf("Unable to parse response from server %q into slice of Player, '%v'", body, err)
@@ -75,28 +74,28 @@ func getLeagueFromResponse(t testing.TB, body io.Reader) (league []inmem.Player)
 	return
 }
 
-func assertContentType(t testing.TB, response httptest.ResponseRecorder, want string) {
+func AssertContentType(t testing.TB, response httptest.ResponseRecorder, want string) {
 	t.Helper()
 	if response.Result().Header.Get("content-type") != want {
 		t.Errorf("response did not have content-type of %v, got %v", want, response.Result().Header)
 	}
 }
 
-func assertLeague(t testing.TB, got, want []inmem.Player) {
+func AssertLeague(t testing.TB, got, want []inmem.Player) {
 	t.Helper()
 	if !slices.Equal(got, want) {
 		t.Errorf("players table is wrong, got %q, want %q", got, want)
 	}
 }
 
-func assertResponseBody(t testing.TB, got, want string) {
+func AssertResponseBody(t testing.TB, got, want string) {
 	t.Helper()
 	if got != want {
 		t.Errorf("response body is wrong, got %q, want %q", got, want)
 	}
 }
 
-func assertStatus(t testing.TB, got, want int) {
+func AssertStatus(t testing.TB, got, want int) {
 	t.Helper()
 	if got != want {
 		t.Errorf("did not get correct status, got %d, want %d", got, want)

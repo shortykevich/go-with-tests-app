@@ -45,13 +45,13 @@ func TestPlayersScores(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := newGetScoreRequest(tt.player)
+			req := NewGetScoreRequest(tt.player)
 			resp := httptest.NewRecorder()
 
 			server.ServeHTTP(resp, req)
 
-			assertStatus(t, resp.Code, tt.expectedHTTPStatus)
-			assertResponseBody(t, resp.Body.String(), tt.expectedScore)
+			AssertStatus(t, resp.Code, tt.expectedHTTPStatus)
+			AssertResponseBody(t, resp.Body.String(), tt.expectedScore)
 		})
 	}
 }
@@ -66,12 +66,12 @@ func TestStoreWins(t *testing.T) {
 	t.Run("Records wins when POST", func(t *testing.T) {
 		player := "Pepper"
 
-		req := newPostRequest("Pepper")
+		req := NewPostRequest("Pepper")
 		resp := httptest.NewRecorder()
 
 		server.ServeHTTP(resp, req)
 
-		assertStatus(t, resp.Code, http.StatusAccepted)
+		AssertStatus(t, resp.Code, http.StatusAccepted)
 
 		if len(storage.winCalls) != 1 {
 			t.Fatalf("got %d calls to RecordWin want %d", len(storage.winCalls), 1)
@@ -92,16 +92,16 @@ func TestLeague(t *testing.T) {
 	server := NewPlayersScoreServer(storage)
 
 	t.Run("get request on /league", func(t *testing.T) {
-		req := newLeagueRequest(t)
+		req := NewLeagueRequest(t)
 		resp := httptest.NewRecorder()
 
 		server.ServeHTTP(resp, req)
 
 		want, _ := server.storage.GetLeagueTable()
-		got := getLeagueFromResponse(t, resp.Body)
+		got := GetLeagueFromResponse(t, resp.Body)
 
-		assertStatus(t, resp.Code, http.StatusOK)
-		assertLeague(t, got, want)
-		assertContentType(t, *resp, jsonContentType)
+		AssertStatus(t, resp.Code, http.StatusOK)
+		AssertLeague(t, got, want)
+		AssertContentType(t, *resp, jsonContentType)
 	})
 }

@@ -11,7 +11,6 @@ import (
 const port = ":5000"
 
 func main() {
-
 	handler := webserver.NewPlayersScoreServer(inmem.NewInMemoryStorage())
 
 	log.Printf("Listening on port %v", port)
