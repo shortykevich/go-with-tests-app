@@ -1,13 +1,15 @@
-package main
+package webserver
 
 import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/shortykevich/go-with-tests-app/db/inmem"
 )
 
 func TestRecordingWinsAndRetrievingThem(t *testing.T) {
-	store := NewInMemoryStorage()
+	store := inmem.NewInMemoryStorage()
 	server := NewPlayersScoreServer(store)
 	player := "Pepper"
 
@@ -29,8 +31,8 @@ func TestRecordingWinsAndRetrievingThem(t *testing.T) {
 		assertStatus(t, response.Code, http.StatusOK)
 
 		got := getLeagueFromResponse(t, response.Body)
-		want := []Player{
-			{"Pepper", 3},
+		want := []inmem.Player{
+			{Name: "Pepper", Wins: 3},
 		}
 		assertLeague(t, got, want)
 	})

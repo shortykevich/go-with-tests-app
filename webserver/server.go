@@ -1,4 +1,4 @@
-package main
+package webserver
 
 import (
 	"encoding/json"
@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/shortykevich/go-with-tests-app/db/inmem"
 )
 
 const jsonContentType = "application/json"
@@ -13,7 +15,7 @@ const jsonContentType = "application/json"
 type PlayersStorage interface {
 	GetPlayerScore(string) (int, error)
 	PostPlayerScore(string) error
-	GetLeagueTable() ([]Player, error)
+	GetLeagueTable() ([]inmem.Player, error)
 }
 
 type PlayersScoreServer struct {
