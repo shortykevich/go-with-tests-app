@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"sync"
 	"testing"
@@ -13,13 +14,37 @@ import (
 )
 
 type FileSystemPlayerStorage struct {
-	mu sync.Mutex
-	Db io.ReadWriteSeeker
+	mu     sync.Mutex
+	Db     io.ReadWriteSeeker
+	League league.League
+}
+
+// Function to initialize db (json) file
+// Return *os.File and function to close it
+func InitDB(path string) (*os.File, func()) {
+	db, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0666)
+	if err != nil {
+		log.Fatalf("Problem opening %s %v", path, err)
+	}
+	// Just for the sake of my sanity. Please one less "if err != nil"
+	stat, _ := os.Stat(path)
+	if stat.Size() == 0 {
+		_, err = db.Write([]byte("[]"))
+		if err != nil {
+			log.Fatalf("Problem writing to %s %v", path, err)
+		}
+		if db.Sync() != nil {
+			log.Fatalf("Couldn't flush the file %s", path)
+		}
+	}
+	return db, func() { db.Close() }
 }
 
 func NewFSPlayerStorage(db *os.File) *FileSystemPlayerStorage {
-	storage := &FileSystemPlayerStorage{Db: db}
-	storage.Db.Write([]byte("[]"))
+	storage := &FileSystemPlayerStorage{
+		Db:     db,
+		League: league.League{},
+	}
 	return storage
 }
 
@@ -68,7 +93,7 @@ func (f *FileSystemPlayerStorage) getLeague() (league.League, error) {
 	err := json.NewDecoder(f.Db).Decode(&leag)
 
 	if err != nil {
-		err = fmt.Errorf("problem parsing league: %v", err)
+		err = fmt.Errorf("problem parsing league: %v\n", err)
 	}
 	return leag, err
 }

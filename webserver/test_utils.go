@@ -41,7 +41,7 @@ func (s *SpyStorage) RecordWin(name string) {
 }
 
 func (s *SpyStorage) GetLeagueTable() (league.League, error) {
-	leag := make([]league.Player, 0, len(s.scores))
+	leag := make(league.League, 0, len(s.scores))
 	for name, wins := range s.scores {
 		leag = append(leag, league.Player{Name: name, Wins: wins})
 	}
@@ -66,9 +66,9 @@ func NewLeagueRequest(t testing.TB) *http.Request {
 	return req
 }
 
-func GetLeagueFromResponse(t testing.TB, body io.Reader) (league []league.Player) {
+func GetLeagueFromResponse(t testing.TB, body io.Reader) (leag league.League) {
 	t.Helper()
-	if err := json.NewDecoder(body).Decode(&league); err != nil {
+	if err := json.NewDecoder(body).Decode(&leag); err != nil {
 		t.Fatalf("Unable to parse response from server %q into slice of Player, '%v'", body, err)
 	}
 	return
@@ -81,8 +81,14 @@ func AssertContentType(t testing.TB, response httptest.ResponseRecorder, want st
 	}
 }
 
-func AssertLeague(t testing.TB, got, want []league.Player) {
+func AssertLeague(t testing.TB, got, want league.League) {
 	t.Helper()
+	srtFunc := func(a, b league.Player) int {
+		return a.Wins - b.Wins
+	}
+	slices.SortFunc(got, srtFunc)
+	slices.SortFunc(want, srtFunc)
+
 	if !slices.Equal(got, want) {
 		t.Errorf("players table is wrong, got %q, want %q", got, want)
 	}
