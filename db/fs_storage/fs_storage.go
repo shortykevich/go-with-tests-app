@@ -40,10 +40,12 @@ func InitDB(path string) (*os.File, func()) {
 	return db, func() { db.Close() }
 }
 
-func NewFSPlayerStorage(db *os.File) *FileSystemPlayerStorage {
+func NewFSPlayerStorage(db io.ReadWriteSeeker) *FileSystemPlayerStorage {
+	db.Seek(0, io.SeekStart)
+	league, _ := league.NewLeague(db)
 	storage := &FileSystemPlayerStorage{
 		Db:     db,
-		League: league.League{},
+		League: league,
 	}
 	return storage
 }
@@ -52,50 +54,28 @@ func (f *FileSystemPlayerStorage) PostPlayerScore(player string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	leag, err := f.getLeague()
-	if err != nil {
-		return err
-	}
-
-	if p := leag.Find(player); p != nil {
+	if p := f.League.Find(player); p != nil {
 		p.Wins++
 	} else {
-		leag = append(leag, league.Player{Name: player, Wins: 1})
+		f.League = append(f.League, league.Player{Name: player, Wins: 1})
 	}
-
-	f.Db.Seek(0, io.SeekStart) // To always write from the beginning
-	json.NewEncoder(f.Db).Encode(leag)
+	// To always write from the beginning
+	f.Db.Seek(0, io.SeekStart)
+	// TODO: fix the issue related to deleting players (Though it's not implemented yet).
+	// If file length will decrease compare to initial state it will break everything
+	json.NewEncoder(f.Db).Encode(f.League)
 	return nil
 }
 
 func (f *FileSystemPlayerStorage) GetLeagueTable() (league.League, error) {
-	league, err := f.getLeague()
-	if err != nil {
-		return nil, err
-	}
-	return league, nil
+	return f.League, nil
 }
 
 func (f *FileSystemPlayerStorage) GetPlayerScore(player string) (int, error) {
-	score, err := f.getLeague()
-	if err != nil {
-		return 0, err
-	}
-	if p := score.Find(player); p != nil {
+	if p := f.League.Find(player); p != nil {
 		return p.Wins, nil
 	}
 	return 0, errors.New(fmt.Sprintf("Requested player '%s' is missing", player))
-}
-
-func (f *FileSystemPlayerStorage) getLeague() (league.League, error) {
-	f.Db.Seek(0, io.SeekStart) // To always read from the beginning
-	var leag league.League
-	err := json.NewDecoder(f.Db).Decode(&leag)
-
-	if err != nil {
-		err = fmt.Errorf("problem parsing league: %v\n", err)
-	}
-	return leag, err
 }
 
 func CreateTempFile(t testing.TB, initalData string) (io.ReadWriteSeeker, func()) {
