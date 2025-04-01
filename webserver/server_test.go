@@ -1,10 +1,78 @@
 package webserver
 
 import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
+
+	"github.com/shortykevich/go-with-tests-app/db/league"
+	tutils "github.com/shortykevich/go-with-tests-app/tests/utils"
 )
+
+type SpyStorage struct {
+	mu       sync.Mutex
+	scores   map[string]int
+	winCalls []string
+}
+
+func (s *SpyStorage) GetPlayerScore(name string) (int, error) {
+	v, ok := s.scores[name]
+	if !ok {
+		return 0, errors.New(fmt.Sprintf("There no player with '%s' name!\n", name))
+	}
+	return v, nil
+}
+
+func (s *SpyStorage) PostPlayerScore(name string) error {
+	s.RecordWin(name)
+	return nil
+}
+
+func (s *SpyStorage) RecordWin(name string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.scores[name]++
+	s.winCalls = append(s.winCalls, name)
+}
+
+func (s *SpyStorage) GetLeagueTable() (league.League, error) {
+	leag := make(league.League, 0, len(s.scores))
+	for name, wins := range s.scores {
+		leag = append(leag, league.Player{Name: name, Wins: wins})
+	}
+	return leag, nil
+}
+
+func NewPostRequest(name string) *http.Request {
+	req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/players/%s", name), nil)
+	return req
+}
+
+func NewGetScoreRequest(name string) *http.Request {
+	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/players/%s", name), nil)
+	return req
+}
+
+func NewLeagueRequest(t testing.TB) *http.Request {
+	req, err := http.NewRequest(http.MethodGet, "/league", nil)
+	if err != nil {
+		t.Fatalf("Request failed with error: %v", err)
+	}
+	return req
+}
+
+func GetLeagueFromResponse(t testing.TB, body io.Reader) (leag league.League) {
+	t.Helper()
+	if err := json.NewDecoder(body).Decode(&leag); err != nil {
+		t.Fatalf("Unable to parse response from server %q into slice of Player, '%v'", body, err)
+	}
+	return
+}
 
 func TestPlayersScores(t *testing.T) {
 	storage := &SpyStorage{
@@ -50,8 +118,8 @@ func TestPlayersScores(t *testing.T) {
 
 			server.ServeHTTP(resp, req)
 
-			AssertStatus(t, resp.Code, tt.expectedHTTPStatus)
-			AssertResponseBody(t, resp.Body.String(), tt.expectedScore)
+			tutils.AssertStatus(t, resp.Code, tt.expectedHTTPStatus)
+			tutils.AssertResponseBody(t, resp.Body.String(), tt.expectedScore)
 		})
 	}
 }
@@ -71,7 +139,7 @@ func TestStoreWins(t *testing.T) {
 
 		server.ServeHTTP(resp, req)
 
-		AssertStatus(t, resp.Code, http.StatusAccepted)
+		tutils.AssertStatus(t, resp.Code, http.StatusAccepted)
 
 		if len(storage.winCalls) != 1 {
 			t.Fatalf("got %d calls to RecordWin want %d", len(storage.winCalls), 1)
@@ -100,8 +168,8 @@ func TestLeague(t *testing.T) {
 		want, _ := server.storage.GetLeagueTable()
 		got := GetLeagueFromResponse(t, resp.Body)
 
-		AssertStatus(t, resp.Code, http.StatusOK)
-		AssertLeague(t, got, want)
-		AssertContentType(t, *resp, jsonContentType)
+		tutils.AssertStatus(t, resp.Code, http.StatusOK)
+		tutils.AssertLeague(t, got, want)
+		tutils.AssertContentType(t, *resp, jsonContentType)
 	})
 }

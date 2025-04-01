@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"sort"
 	"sync"
 	"testing"
 
@@ -15,39 +16,43 @@ import (
 
 type FileSystemPlayerStorage struct {
 	mu     sync.Mutex
-	Db     io.ReadWriteSeeker
+	Db     *json.Encoder
 	League league.League
 }
 
-// Function to initialize db (json) file
-// Return *os.File and function to close it
-func InitDB(path string) (*os.File, func()) {
-	db, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0666)
+func initPlayersDBFile(db *os.File) error {
+	stat, err := db.Stat()
 	if err != nil {
-		log.Fatalf("Problem opening %s %v", path, err)
+		return fmt.Errorf("problem getting file info from file %s, %v", db.Name(), err)
 	}
-	// Just for the sake of my sanity. Please one less "if err != nil"
-	stat, _ := os.Stat(path)
+
 	if stat.Size() == 0 {
 		_, err = db.Write([]byte("[]"))
 		if err != nil {
-			log.Fatalf("Problem writing to %s %v", path, err)
+			log.Fatalf("Problem writing to %s %v", db.Name(), err)
 		}
-		if db.Sync() != nil {
-			log.Fatalf("Couldn't flush the file %s", path)
-		}
+		db.Seek(0, io.SeekStart)
 	}
-	return db, func() { db.Close() }
+	return nil
 }
 
-func NewFSPlayerStorage(db io.ReadWriteSeeker) *FileSystemPlayerStorage {
+func NewFSPlayerStorage(db *os.File) (*FileSystemPlayerStorage, error) {
 	db.Seek(0, io.SeekStart)
-	league, _ := league.NewLeague(db)
-	storage := &FileSystemPlayerStorage{
-		Db:     db,
-		League: league,
+
+	err := initPlayersDBFile(db)
+	if err != nil {
+		return nil, fmt.Errorf("problem initialising player db file, %v", err)
 	}
-	return storage
+
+	league, err := league.NewLeague(db)
+	if err != nil {
+		return nil, fmt.Errorf("problem loading player storage from file %s, %v", db.Name(), err)
+	}
+
+	return &FileSystemPlayerStorage{
+		Db:     json.NewEncoder(&tape{file: db}),
+		League: league,
+	}, nil
 }
 
 func (f *FileSystemPlayerStorage) PostPlayerScore(player string) error {
@@ -59,15 +64,16 @@ func (f *FileSystemPlayerStorage) PostPlayerScore(player string) error {
 	} else {
 		f.League = append(f.League, league.Player{Name: player, Wins: 1})
 	}
-	// To always write from the beginning
-	f.Db.Seek(0, io.SeekStart)
 	// TODO: fix the issue related to deleting players (Though it's not implemented yet).
 	// If file length will decrease compare to initial state it will break everything
-	json.NewEncoder(f.Db).Encode(f.League)
+	f.Db.Encode(f.League)
 	return nil
 }
 
 func (f *FileSystemPlayerStorage) GetLeagueTable() (league.League, error) {
+	sort.Slice(f.League, func(i, j int) bool {
+		return f.League[i].Wins > f.League[j].Wins
+	})
 	return f.League, nil
 }
 
@@ -78,7 +84,7 @@ func (f *FileSystemPlayerStorage) GetPlayerScore(player string) (int, error) {
 	return 0, errors.New(fmt.Sprintf("Requested player '%s' is missing", player))
 }
 
-func CreateTempFile(t testing.TB, initalData string) (io.ReadWriteSeeker, func()) {
+func CreateTempFile(t testing.TB, initalData string) (*os.File, func()) {
 	t.Helper()
 
 	tmpfile, err := os.CreateTemp("", "db")

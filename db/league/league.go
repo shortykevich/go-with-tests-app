@@ -14,12 +14,12 @@ type Player struct {
 type League []Player
 
 func NewLeague(r io.Reader) (League, error) {
-	var league League
-	err := json.NewDecoder(r).Decode(&league)
+	var leag League
+	err := json.NewDecoder(r).Decode(&leag)
 	if err != nil {
 		err = fmt.Errorf("problem parsing league, %v", err)
 	}
-	return league, err
+	return leag, err
 }
 
 func (l League) Find(name string) *Player {
