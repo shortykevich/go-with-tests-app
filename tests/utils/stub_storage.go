@@ -9,7 +9,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/shortykevich/go-with-tests-app/db/league"
+	"github.com/shortykevich/go-with-tests-app/db/leaguedb"
 )
 
 type SpyStorage struct {
@@ -38,10 +38,10 @@ func (s *SpyStorage) RecordWin(name string) {
 	s.WinCalls = append(s.WinCalls, name)
 }
 
-func (s *SpyStorage) GetLeagueTable() (league.League, error) {
-	leag := make(league.League, 0, len(s.Scores))
+func (s *SpyStorage) GetLeagueTable() (leaguedb.League, error) {
+	leag := make(leaguedb.League, 0, len(s.Scores))
 	for name, wins := range s.Scores {
-		leag = append(leag, league.Player{Name: name, Wins: wins})
+		leag = append(leag, leaguedb.Player{Name: name, Wins: wins})
 	}
 	return leag, nil
 }
@@ -64,7 +64,7 @@ func NewLeagueRequest(t testing.TB) *http.Request {
 	return req
 }
 
-func GetLeagueFromResponse(t testing.TB, body io.Reader) (leag league.League) {
+func GetLeagueFromResponse(t testing.TB, body io.Reader) (leag leaguedb.League) {
 	t.Helper()
 	if err := json.NewDecoder(body).Decode(&leag); err != nil {
 		t.Fatalf("Unable to parse response from server %q into slice of Player, '%v'", body, err)

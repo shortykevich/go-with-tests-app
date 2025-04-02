@@ -1,10 +1,16 @@
-package league
+package leaguedb
 
 import (
 	"encoding/json"
 	"fmt"
 	"io"
 )
+
+type PlayersStorage interface {
+	GetPlayerScore(string) (int, error)
+	PostPlayerScore(string) error
+	GetLeagueTable() (League, error)
+}
 
 type Player struct {
 	Name string

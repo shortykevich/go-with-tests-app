@@ -11,13 +11,13 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/shortykevich/go-with-tests-app/db/league"
+	"github.com/shortykevich/go-with-tests-app/db/leaguedb"
 )
 
 type FileSystemPlayerStorage struct {
 	mu     sync.Mutex
 	Db     *json.Encoder
-	League league.League
+	League leaguedb.League
 }
 
 func FileSystemStorageFromFile(path string) (*FileSystemPlayerStorage, func(), error) {
@@ -61,7 +61,7 @@ func NewFSPlayerStorage(db *os.File) (*FileSystemPlayerStorage, error) {
 		return nil, fmt.Errorf("problem initialising player db file, %v", err)
 	}
 
-	league, err := league.NewLeague(db)
+	league, err := leaguedb.NewLeague(db)
 	if err != nil {
 		return nil, fmt.Errorf("problem loading player storage from file %s, %v", db.Name(), err)
 	}
@@ -79,7 +79,7 @@ func (f *FileSystemPlayerStorage) PostPlayerScore(player string) error {
 	if p := f.League.Find(player); p != nil {
 		p.Wins++
 	} else {
-		f.League = append(f.League, league.Player{Name: player, Wins: 1})
+		f.League = append(f.League, leaguedb.Player{Name: player, Wins: 1})
 	}
 	// TODO: fix the issue related to deleting players (Though it's not implemented yet).
 	// If file length will decrease compare to initial state it will break everything
@@ -87,7 +87,7 @@ func (f *FileSystemPlayerStorage) PostPlayerScore(player string) error {
 	return nil
 }
 
-func (f *FileSystemPlayerStorage) GetLeagueTable() (league.League, error) {
+func (f *FileSystemPlayerStorage) GetLeagueTable() (leaguedb.League, error) {
 	sort.Slice(f.League, func(i, j int) bool {
 		return f.League[i].Wins > f.League[j].Wins
 	})

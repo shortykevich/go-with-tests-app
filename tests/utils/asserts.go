@@ -5,7 +5,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/shortykevich/go-with-tests-app/db/league"
+	"github.com/shortykevich/go-with-tests-app/db/leaguedb"
 )
 
 func AssertContentType(t testing.TB, response httptest.ResponseRecorder, want string) {
@@ -15,7 +15,7 @@ func AssertContentType(t testing.TB, response httptest.ResponseRecorder, want st
 	}
 }
 
-func AssertLeague(t testing.TB, got, want league.League) {
+func AssertLeague(t testing.TB, got, want leaguedb.League) {
 	t.Helper()
 	if !slices.Equal(got, want) {
 		t.Errorf("players table is wrong, got %q, want %q", got, want)

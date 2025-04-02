@@ -3,7 +3,7 @@ package fss
 import (
 	"testing"
 
-	"github.com/shortykevich/go-with-tests-app/db/league"
+	"github.com/shortykevich/go-with-tests-app/db/leaguedb"
 	tutils "github.com/shortykevich/go-with-tests-app/tests/utils"
 )
 
@@ -20,7 +20,7 @@ func TestFileSystemStorage(t *testing.T) {
 		got, err := store.GetLeagueTable()
 		tutils.AssertNoError(t, err)
 		t.Logf("DEBUG: %v", got)
-		want := league.League{
+		want := leaguedb.League{
 			{Name: "Chris", Wins: 33},
 			{Name: "Cleo", Wins: 10},
 		}
@@ -107,7 +107,7 @@ func TestFileSystemStorage(t *testing.T) {
 		got, err := store.GetLeagueTable()
 		tutils.AssertNoError(t, err)
 
-		want := league.League{
+		want := leaguedb.League{
 			{Name: "Chris", Wins: 33},
 			{Name: "Cleo", Wins: 10},
 		}

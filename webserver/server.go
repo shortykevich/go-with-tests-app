@@ -7,23 +7,23 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/shortykevich/go-with-tests-app/db/league"
+	"github.com/shortykevich/go-with-tests-app/db/leaguedb"
 )
 
 const jsonContentType = "application/json"
 
-type PlayersStorage interface {
-	GetPlayerScore(string) (int, error)
-	PostPlayerScore(string) error
-	GetLeagueTable() (league.League, error)
-}
+// type PlayersStorage interface {
+// 	GetPlayerScore(string) (int, error)
+// 	PostPlayerScore(string) error
+// 	GetLeagueTable() (league.League, error)
+// }
 
 type PlayersScoreServer struct {
-	storage PlayersStorage
+	storage leaguedb.PlayersStorage
 	http.Handler
 }
 
-func NewPlayersScoreServer(storage PlayersStorage) *PlayersScoreServer {
+func NewPlayersScoreServer(storage leaguedb.PlayersStorage) *PlayersScoreServer {
 	serv := &PlayersScoreServer{
 		storage: storage,
 	}

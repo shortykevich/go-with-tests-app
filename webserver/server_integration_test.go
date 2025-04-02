@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	fss "github.com/shortykevich/go-with-tests-app/db/fs_storage"
-	"github.com/shortykevich/go-with-tests-app/db/league"
+	"github.com/shortykevich/go-with-tests-app/db/leaguedb"
 	tutils "github.com/shortykevich/go-with-tests-app/tests/utils"
 )
 
@@ -39,7 +39,7 @@ func TestRecordingWinsAndRetrievingThem(t *testing.T) {
 		tutils.AssertStatus(t, response.Code, http.StatusOK)
 
 		got := tutils.GetLeagueFromResponse(t, response.Body)
-		want := []league.Player{
+		want := leaguedb.League{
 			{Name: "Pepper", Wins: 3},
 		}
 		tutils.AssertLeague(t, got, want)

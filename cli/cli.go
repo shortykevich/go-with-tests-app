@@ -5,15 +5,15 @@ import (
 	"io"
 	"strings"
 
-	"github.com/shortykevich/go-with-tests-app/webserver"
+	"github.com/shortykevich/go-with-tests-app/db/leaguedb"
 )
 
 type CLI struct {
-	storage webserver.PlayersStorage
+	storage leaguedb.PlayersStorage
 	in      *bufio.Scanner
 }
 
-func NewCLI(store webserver.PlayersStorage, in io.Reader) *CLI {
+func NewCLI(store leaguedb.PlayersStorage, in io.Reader) *CLI {
 	return &CLI{
 		storage: store,
 		in:      bufio.NewScanner(in),
