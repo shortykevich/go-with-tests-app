@@ -3,7 +3,6 @@ package main
 import (
 	"log"
 	"net/http"
-	"os"
 
 	fss "github.com/shortykevich/go-with-tests-app/db/fs_storage"
 	"github.com/shortykevich/go-with-tests-app/webserver"
@@ -15,15 +14,11 @@ const (
 )
 
 func main() {
-	db, err := os.OpenFile(dbFileName, os.O_RDWR|os.O_CREATE, 0666)
-	if err != nil {
-		log.Fatalf("Problem opening %s %v", dbFileName, err)
-	}
-
-	store, err := fss.NewFSPlayerStorage(db)
+	store, close, err := fss.FileSystemStorageFromFile(dbFileName)
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer close()
 
 	handler := webserver.NewPlayersScoreServer(store)
 

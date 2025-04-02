@@ -49,3 +49,15 @@ func AssertPlayerScore(t testing.TB, got, want int) {
 		t.Errorf("got %d, want %d", got, want)
 	}
 }
+
+func AssertPlayerWin(t testing.TB, store *SpyStorage, winner string) {
+	t.Helper()
+
+	if len(store.WinCalls) != 1 {
+		t.Fatalf("got %d calls to RecordWin want %d", len(store.WinCalls), 1)
+	}
+
+	if store.WinCalls[0] != winner {
+		t.Errorf("did not store correct winner got %q want %q", store.WinCalls[0], winner)
+	}
+}
