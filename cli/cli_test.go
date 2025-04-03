@@ -59,13 +59,17 @@ func TestBlindAerter(t *testing.T) {
 
 				alert := blindAlerter.alerts[i]
 
-				if alert.amount != c.amount {
-					t.Errorf("got amount %d, want %d", alert.amount, c.amount)
-				}
-				if alert.at != c.at {
-					t.Errorf("got scheduled time of %v, want %v", alert.at, c.at)
-				}
+				assertScheduledAlert(t, alert, c)
 			})
 		}
 	})
+}
+
+func assertScheduledAlert(t testing.TB, got, want scheduledAlert) {
+	if got.amount != want.amount {
+		t.Errorf("got amount %d, want %d", got.amount, want.amount)
+	}
+	if got.at != want.at {
+		t.Errorf("got scheduled time of %v, want %v", got.at, want.at)
+	}
 }
