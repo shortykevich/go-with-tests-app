@@ -19,6 +19,13 @@ type SpyStorage struct {
 	WinCalls []string
 }
 
+func NewSpyStorage() *SpyStorage {
+	return &SpyStorage{
+		Scores:   make(map[string]int),
+		WinCalls: []string(nil),
+	}
+}
+
 func (s *SpyStorage) GetPlayerScore(name string) (int, error) {
 	v, ok := s.Scores[name]
 	if !ok {

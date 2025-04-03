@@ -1,38 +1,43 @@
 package poker
 
 import (
-	"bufio"
+	"fmt"
 	"strings"
 	"testing"
 
 	tutils "github.com/shortykevich/go-with-tests-app/tests/utils"
 )
 
+var dummySpyAlerter = &SpyBlindAlerter{}
+
 func TestCLI(t *testing.T) {
-	t.Run("record chris win from user input", func(t *testing.T) {
-		input := strings.NewReader("Chris wins\n")
-		storage := &tutils.SpyStorage{
-			Scores:   make(map[string]int),
-			WinCalls: []string{},
-		}
-		cli := &CLI{
-			storage: storage,
-			in:      bufio.NewScanner(input),
-		}
+	cases := []string{
+		"Chris",
+		"Cleo",
+	}
+	for _, name := range cases {
+		t.Run(fmt.Sprintf("record %s win from user input", name), func(t *testing.T) {
+			input := strings.NewReader(fmt.Sprintf("%s wins\n", name))
+			storage := tutils.NewSpyStorage()
+			cli := NewCLI(storage, input, dummySpyAlerter)
+
+			cli.PlayPoker()
+			tutils.AssertPlayerWin(t, storage, name)
+		})
+	}
+}
+
+func TestBlindAerter(t *testing.T) {
+	t.Run("it schedules printing of blind values", func(t *testing.T) {
+		in := strings.NewReader("Chris wins\n")
+		playerStorage := tutils.NewSpyStorage()
+		blindAlerter := &SpyBlindAlerter{}
+
+		cli := NewCLI(playerStorage, in, blindAlerter)
 		cli.PlayPoker()
-		tutils.AssertPlayerWin(t, storage, "Chris")
-	})
-	t.Run("record cleo win from user input", func(t *testing.T) {
-		input := strings.NewReader("Cleo wins\n")
-		storage := &tutils.SpyStorage{
-			Scores:   make(map[string]int),
-			WinCalls: []string{},
+
+		if len(blindAlerter.alerts) != 1 {
+			t.Fatal("expected a blind alert to be scheduled")
 		}
-		cli := &CLI{
-			storage: storage,
-			in:      bufio.NewScanner(input),
-		}
-		cli.PlayPoker()
-		tutils.AssertPlayerWin(t, storage, "Cleo")
 	})
 }

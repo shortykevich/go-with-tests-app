@@ -9,6 +9,8 @@ import (
 	fss "github.com/shortykevich/go-with-tests-app/db/fs_storage"
 )
 
+var dummyAlerter = &poker.SpyBlindAlerter{}
+
 const dbFileName = "game.db.json"
 
 func main() {
@@ -21,6 +23,6 @@ func main() {
 	}
 	defer close()
 
-	game := poker.NewCLI(store, os.Stdin)
+	game := poker.NewCLI(store, os.Stdin, dummyAlerter)
 	game.PlayPoker()
 }
