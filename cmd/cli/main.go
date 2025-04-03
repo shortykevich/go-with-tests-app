@@ -17,12 +17,13 @@ func main() {
 	fmt.Println("Let's play poker!")
 	fmt.Println(`Type "{Name} wins" to record a win`)
 
-	store, close, err := fss.FileSystemStorageFromFile(dbFileName)
+	storage, close, err := fss.FileSystemStorageFromFile(dbFileName)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer close()
 
-	game := poker.NewCLI(store, os.Stdin, os.Stdout, dummyAlerter)
-	game.PlayPoker()
+	game := poker.NewGame(poker.BlindAlerterFunc(poker.StdOutAlerter), storage)
+	cli := poker.NewCLI(os.Stdin, os.Stdout, game)
+	cli.PlayPoker()
 }

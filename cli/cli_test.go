@@ -3,6 +3,7 @@ package poker
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"strings"
 	"testing"
 	"time"
@@ -22,9 +23,10 @@ func TestCLI(t *testing.T) {
 	}
 	for _, name := range cases {
 		t.Run(fmt.Sprintf("record %s win from user input", name), func(t *testing.T) {
-			input := strings.NewReader(fmt.Sprintf("%s wins\n", name))
+			input := userInput("5", fmt.Sprintf("%s wins\n", name))
 			storage := tutils.NewSpyStorage()
-			cli := NewCLI(storage, input, dummyStdOut, dummySpyAlerter)
+			game := NewGame(dummySpyAlerter, storage)
+			cli := NewCLI(input, dummyStdOut, game)
 
 			cli.PlayPoker()
 			tutils.AssertPlayerWin(t, storage, name)
@@ -34,11 +36,11 @@ func TestCLI(t *testing.T) {
 
 func TestBlindAlerter(t *testing.T) {
 	t.Run("it schedules printing of blind values", func(t *testing.T) {
-		in := strings.NewReader("Chris wins\n")
+		in := userInput("5", "Chris wins")
 		playerStorage := tutils.NewSpyStorage()
 		blindAlerter := &SpyBlindAlerter{}
-
-		cli := NewCLI(playerStorage, in, dummyStdOut, blindAlerter)
+		game := NewGame(blindAlerter, playerStorage)
+		cli := NewCLI(in, dummyStdOut, game)
 		cli.PlayPoker()
 
 		cases := []scheduledAlert{
@@ -71,15 +73,42 @@ func TestBlindAlerter(t *testing.T) {
 	t.Run("it prompts the user to enter the number of players", func(t *testing.T) {
 		playerStorage := tutils.NewSpyStorage()
 		out := &bytes.Buffer{}
-		cli := NewCLI(playerStorage, dummyStdIn, out, dummySpyAlerter)
+		in := strings.NewReader("7\n")
+		blindAlerter := &SpyBlindAlerter{}
+		game := NewGame(blindAlerter, playerStorage)
+		cli := NewCLI(in, out, game)
+
 		cli.PlayPoker()
 
 		got := out.String()
+		want := numPlayerPrompt
 
-		if got != numPlayerPrompt {
-			t.Errorf("got %q, want %q", got, numPlayerPrompt)
+		if got != want {
+			t.Errorf("got %q, want %q", got, want)
+		}
+
+		cases := []scheduledAlert{
+			{0 * time.Second, 100},
+			{12 * time.Minute, 200},
+			{24 * time.Minute, 300},
+			{36 * time.Minute, 400},
+		}
+
+		for i, want := range cases {
+			t.Run(fmt.Sprint(want), func(t *testing.T) {
+				if len(blindAlerter.alerts) <= i {
+					t.Fatalf("alert %d was not scheduled %v", i, blindAlerter.alerts)
+				}
+
+				got := blindAlerter.alerts[i]
+				assertScheduledAlert(t, got, want)
+			})
 		}
 	})
+}
+
+func userInput(msgs ...string) io.Reader {
+	return strings.NewReader(strings.Join(msgs, "\n"))
 }
 
 func assertScheduledAlert(t testing.TB, got, want scheduledAlert) {

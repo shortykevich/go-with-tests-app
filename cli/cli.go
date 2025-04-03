@@ -4,17 +4,15 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 	"time"
-
-	"github.com/shortykevich/go-with-tests-app/db/leaguedb"
 )
 
-const numPlayerPrompt = "Please enter the number of players: "
-
-type BlindAlerter interface {
-	ScheduleAlertAt(time.Duration, int)
-}
+const (
+	baseTime        = 5
+	numPlayerPrompt = "Please enter the number of players: "
+)
 
 type scheduledAlert struct {
 	at     time.Duration
@@ -22,10 +20,9 @@ type scheduledAlert struct {
 }
 
 type CLI struct {
-	storage leaguedb.PlayersStorage
-	in      *bufio.Scanner
-	out     io.Writer
-	alerter BlindAlerter
+	in   *bufio.Scanner
+	out  io.Writer
+	game *Game
 }
 
 type SpyBlindAlerter struct {
@@ -40,31 +37,24 @@ func (s *SpyBlindAlerter) ScheduleAlertAt(at time.Duration, amount int) {
 	s.alerts = append(s.alerts, scheduledAlert{at, amount})
 }
 
-func NewCLI(store leaguedb.PlayersStorage, in io.Reader, out io.Writer, alerter BlindAlerter) *CLI {
+func NewCLI(in io.Reader, out io.Writer, game *Game) *CLI {
 	return &CLI{
-		storage: store,
-		in:      bufio.NewScanner(in),
-		out:     out,
-		alerter: alerter,
+		in:   bufio.NewScanner(in),
+		out:  out,
+		game: game,
 	}
 }
 
 func (c *CLI) PlayPoker() {
 	fmt.Fprint(c.out, numPlayerPrompt)
-	c.scheduleBlindAlerts()
+
+	trimmedPrompt := strings.Trim(c.readInput(), "\n")
+	numOfPlayers, _ := strconv.Atoi(trimmedPrompt)
+
+	c.game.Start(numOfPlayers)
 
 	userInput := c.readInput()
-	c.storage.PostPlayerScore(getTheName(userInput))
-}
-
-func (c *CLI) scheduleBlindAlerts() {
-	blinds := []int{100, 200, 300, 400, 500, 600, 800, 1000, 2000, 4000, 8000}
-	blindTime := 0 * time.Second
-
-	for _, blind := range blinds {
-		c.alerter.ScheduleAlertAt(blindTime, blind)
-		blindTime = blindTime + 10*time.Minute
-	}
+	c.game.Finish(getTheName(userInput))
 }
 
 func (c *CLI) readInput() string {
