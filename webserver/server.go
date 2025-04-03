@@ -12,12 +12,6 @@ import (
 
 const jsonContentType = "application/json"
 
-// type PlayersStorage interface {
-// 	GetPlayerScore(string) (int, error)
-// 	PostPlayerScore(string) error
-// 	GetLeagueTable() (league.League, error)
-// }
-
 type PlayersScoreServer struct {
 	storage leaguedb.PlayersStorage
 	http.Handler

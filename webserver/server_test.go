@@ -85,21 +85,23 @@ func TestStoreWins(t *testing.T) {
 }
 
 func TestLeague(t *testing.T) {
-	storage := &tutils.SpyStorage{
-		Scores: map[string]int{
-			"Alice": 15,
-			"Bill":  10,
-		},
-	}
-	server := NewPlayersScoreServer(storage)
-
 	t.Run("get request on /league", func(t *testing.T) {
+		storage := &tutils.SpyStorage{
+			Scores: map[string]int{
+				"Alice": 15,
+				"Bill":  10,
+			},
+		}
+		server := NewPlayersScoreServer(storage)
+
 		req := tutils.NewLeagueRequest(t)
 		resp := httptest.NewRecorder()
 
 		server.ServeHTTP(resp, req)
 
-		want, _ := server.storage.GetLeagueTable()
+		want, err := server.storage.GetLeagueTable()
+		tutils.AssertNoError(t, err)
+
 		got := tutils.GetLeagueFromResponse(t, resp.Body)
 
 		tutils.AssertStatus(t, resp.Code, http.StatusOK)

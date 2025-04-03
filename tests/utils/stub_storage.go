@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
 	"sync"
 	"testing"
 
@@ -43,6 +44,9 @@ func (s *SpyStorage) GetLeagueTable() (leaguedb.League, error) {
 	for name, wins := range s.Scores {
 		leag = append(leag, leaguedb.Player{Name: name, Wins: wins})
 	}
+	sort.Slice(leag, func(i, j int) bool {
+		return leag[i].Wins > leag[j].Wins
+	})
 	return leag, nil
 }
 
