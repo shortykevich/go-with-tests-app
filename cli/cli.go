@@ -10,8 +10,9 @@ import (
 )
 
 const (
-	baseTime        = 5
-	numPlayerPrompt = "Please enter the number of players: "
+	baseTime               = 5
+	numPlayerPrompt        = "Please enter the number of players: "
+	wrongPlayerInputErrMsg = "Bad value received for number of players, please try again with a number\n"
 )
 
 type scheduledAlert struct {
@@ -49,7 +50,11 @@ func (c *CLI) PlayPoker() {
 	fmt.Fprint(c.out, numPlayerPrompt)
 
 	trimmedPrompt := strings.Trim(c.readInput(), "\n")
-	numOfPlayers, _ := strconv.Atoi(trimmedPrompt)
+	numOfPlayers, err := strconv.Atoi(trimmedPrompt)
+	if err != nil {
+		fmt.Fprint(c.out, wrongPlayerInputErrMsg)
+		return
+	}
 
 	c.game.Start(numOfPlayers)
 
@@ -60,6 +65,20 @@ func (c *CLI) PlayPoker() {
 func (c *CLI) readInput() string {
 	c.in.Scan()
 	return c.in.Text()
+}
+
+func (c *CLI) awaitNumOfPlayersPrompt() int {
+	for {
+		fmt.Fprint(c.out, numPlayerPrompt)
+
+		trimmedPrompt := strings.Trim(c.readInput(), "\n")
+		num, err := strconv.Atoi(trimmedPrompt)
+		if err != nil {
+			fmt.Fprint(c.out, "Bad value received for number of players, please try again with a number\n")
+			continue
+		}
+		return num
+	}
 }
 
 func getTheName(input string) string {
