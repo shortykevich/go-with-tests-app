@@ -10,6 +10,8 @@ import (
 	"github.com/shortykevich/go-with-tests-app/db/leaguedb"
 )
 
+const numPlayerPrompt = "Please enter the number of players: "
+
 type BlindAlerter interface {
 	ScheduleAlertAt(time.Duration, int)
 }
@@ -22,6 +24,7 @@ type scheduledAlert struct {
 type CLI struct {
 	storage leaguedb.PlayersStorage
 	in      *bufio.Scanner
+	out     io.Writer
 	alerter BlindAlerter
 }
 
@@ -37,15 +40,17 @@ func (s *SpyBlindAlerter) ScheduleAlertAt(at time.Duration, amount int) {
 	s.alerts = append(s.alerts, scheduledAlert{at, amount})
 }
 
-func NewCLI(store leaguedb.PlayersStorage, in io.Reader, alerter BlindAlerter) *CLI {
+func NewCLI(store leaguedb.PlayersStorage, in io.Reader, out io.Writer, alerter BlindAlerter) *CLI {
 	return &CLI{
 		storage: store,
 		in:      bufio.NewScanner(in),
+		out:     out,
 		alerter: alerter,
 	}
 }
 
 func (c *CLI) PlayPoker() {
+	fmt.Fprint(c.out, numPlayerPrompt)
 	c.scheduleBlindAlerts()
 
 	userInput := c.readInput()

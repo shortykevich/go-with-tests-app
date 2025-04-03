@@ -1,6 +1,7 @@
 package poker
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 	"testing"
@@ -9,6 +10,9 @@ import (
 	tutils "github.com/shortykevich/go-with-tests-app/tests/utils"
 )
 
+var dummyBlindAlerter = &SpyBlindAlerter{}
+var dummyStdIn = &bytes.Buffer{}
+var dummyStdOut = &bytes.Buffer{}
 var dummySpyAlerter = &SpyBlindAlerter{}
 
 func TestCLI(t *testing.T) {
@@ -20,7 +24,7 @@ func TestCLI(t *testing.T) {
 		t.Run(fmt.Sprintf("record %s win from user input", name), func(t *testing.T) {
 			input := strings.NewReader(fmt.Sprintf("%s wins\n", name))
 			storage := tutils.NewSpyStorage()
-			cli := NewCLI(storage, input, dummySpyAlerter)
+			cli := NewCLI(storage, input, dummyStdOut, dummySpyAlerter)
 
 			cli.PlayPoker()
 			tutils.AssertPlayerWin(t, storage, name)
@@ -28,13 +32,13 @@ func TestCLI(t *testing.T) {
 	}
 }
 
-func TestBlindAerter(t *testing.T) {
+func TestBlindAlerter(t *testing.T) {
 	t.Run("it schedules printing of blind values", func(t *testing.T) {
 		in := strings.NewReader("Chris wins\n")
 		playerStorage := tutils.NewSpyStorage()
 		blindAlerter := &SpyBlindAlerter{}
 
-		cli := NewCLI(playerStorage, in, blindAlerter)
+		cli := NewCLI(playerStorage, in, dummyStdOut, blindAlerter)
 		cli.PlayPoker()
 
 		cases := []scheduledAlert{
@@ -61,6 +65,19 @@ func TestBlindAerter(t *testing.T) {
 
 				assertScheduledAlert(t, alert, c)
 			})
+		}
+	})
+
+	t.Run("it prompts the user to enter the number of players", func(t *testing.T) {
+		playerStorage := tutils.NewSpyStorage()
+		out := &bytes.Buffer{}
+		cli := NewCLI(playerStorage, dummyStdIn, out, dummySpyAlerter)
+		cli.PlayPoker()
+
+		got := out.String()
+
+		if got != numPlayerPrompt {
+			t.Errorf("got %q, want %q", got, numPlayerPrompt)
 		}
 	})
 }

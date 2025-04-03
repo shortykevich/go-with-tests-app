@@ -23,6 +23,6 @@ func main() {
 	}
 	defer close()
 
-	game := poker.NewCLI(store, os.Stdin, dummyAlerter)
+	game := poker.NewCLI(store, os.Stdin, os.Stdout, dummyAlerter)
 	game.PlayPoker()
 }
