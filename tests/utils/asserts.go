@@ -29,10 +29,10 @@ func AssertResponseBody(t testing.TB, got, want string) {
 	}
 }
 
-func AssertStatus(t testing.TB, got, want int) {
+func AssertStatus(t testing.TB, got *httptest.ResponseRecorder, want int) {
 	t.Helper()
-	if got != want {
-		t.Errorf("did not get correct status, got %d, want %d", got, want)
+	if got.Code != want {
+		t.Errorf("did not get correct status, got %d, want %d", got.Code, want)
 	}
 }
 
@@ -50,7 +50,7 @@ func AssertPlayerScore(t testing.TB, got, want int) {
 	}
 }
 
-func AssertPlayerWin(t testing.TB, store *SpyStorage, winner string) {
+func AssertPlayerWin(t testing.TB, store *StubStorage, winner string) {
 	t.Helper()
 
 	if len(store.WinCalls) != 1 {

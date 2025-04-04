@@ -20,25 +20,25 @@ func TestRecordingWinsAndRetrievingThem(t *testing.T) {
 	server := NewPlayersScoreServer(store)
 	player := "Pepper"
 
-	server.ServeHTTP(httptest.NewRecorder(), tutils.NewPostRequest(player))
-	server.ServeHTTP(httptest.NewRecorder(), tutils.NewPostRequest(player))
-	server.ServeHTTP(httptest.NewRecorder(), tutils.NewPostRequest(player))
+	server.ServeHTTP(httptest.NewRecorder(), newPostRequest(player))
+	server.ServeHTTP(httptest.NewRecorder(), newPostRequest(player))
+	server.ServeHTTP(httptest.NewRecorder(), newPostRequest(player))
 
 	t.Run("get score", func(t *testing.T) {
 
 		response := httptest.NewRecorder()
-		server.ServeHTTP(response, tutils.NewGetScoreRequest(player))
-		tutils.AssertStatus(t, response.Code, http.StatusOK)
+		server.ServeHTTP(response, newGetScoreRequest(player))
+		tutils.AssertStatus(t, response, http.StatusOK)
 
 		tutils.AssertResponseBody(t, response.Body.String(), "3")
 	})
 
 	t.Run("get league", func(t *testing.T) {
 		response := httptest.NewRecorder()
-		server.ServeHTTP(response, tutils.NewLeagueRequest(t))
-		tutils.AssertStatus(t, response.Code, http.StatusOK)
+		server.ServeHTTP(response, newLeagueRequest(t))
+		tutils.AssertStatus(t, response, http.StatusOK)
 
-		got := tutils.GetLeagueFromResponse(t, response.Body)
+		got := getLeagueFromResponse(t, response.Body)
 		want := leaguedb.League{
 			{Name: "Pepper", Wins: 3},
 		}

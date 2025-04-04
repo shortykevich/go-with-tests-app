@@ -39,7 +39,7 @@ func TestCLI(t *testing.T) {
 	for _, name := range cases {
 		t.Run(fmt.Sprintf("record %s win from user input", name), func(t *testing.T) {
 			input := userInput("5", fmt.Sprintf("%s wins\n", name))
-			storage := tutils.NewSpyStorage()
+			storage := tutils.NewStubStorage()
 			game := NewGame(dummySpyAlerter, storage)
 			cli := NewCLI(input, dummyStdOut, game)
 
@@ -52,7 +52,7 @@ func TestCLI(t *testing.T) {
 func TestBlindAlerter(t *testing.T) {
 	t.Run("it schedules printing of blind values", func(t *testing.T) {
 		in := userInput("5", "Chris wins")
-		playerStorage := tutils.NewSpyStorage()
+		playerStorage := tutils.NewStubStorage()
 		blindAlerter := &SpyBlindAlerter{}
 		game := NewGame(blindAlerter, playerStorage)
 		cli := NewCLI(in, dummyStdOut, game)
@@ -76,7 +76,7 @@ func TestBlindAlerter(t *testing.T) {
 	})
 
 	t.Run("it prompts the user to enter the number of players", func(t *testing.T) {
-		playerStorage := tutils.NewSpyStorage()
+		playerStorage := tutils.NewStubStorage()
 		out := &bytes.Buffer{}
 		in := userInput("7")
 		blindAlerter := &SpyBlindAlerter{}
@@ -103,7 +103,7 @@ func TestBlindAlerter(t *testing.T) {
 	})
 
 	t.Run("schedules alerts on game start for 7 players", func(t *testing.T) {
-		playerStorage := tutils.NewSpyStorage()
+		playerStorage := tutils.NewStubStorage()
 		blindAlerter := &SpyBlindAlerter{}
 		game := NewGame(blindAlerter, playerStorage)
 
@@ -171,7 +171,7 @@ func TestBlindAlerter(t *testing.T) {
 }
 
 func TestGame_Finish(t *testing.T) {
-	store := tutils.NewSpyStorage()
+	store := tutils.NewStubStorage()
 	game := NewGame(dummyBlindAlerter, store)
 	winner := "Ruth"
 

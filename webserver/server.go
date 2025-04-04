@@ -2,6 +2,8 @@ package webserver
 
 import (
 	"encoding/json"
+	"fmt"
+	"html/template"
 	"log"
 	"net/http"
 	"strconv"
@@ -23,6 +25,7 @@ func NewPlayersScoreServer(storage leaguedb.PlayersStorage) *PlayersScoreServer 
 	}
 
 	router := http.NewServeMux()
+	router.Handle("/game", http.HandlerFunc(serv.newGameHandler))
 	router.Handle("/league", http.HandlerFunc(serv.leagueHandler))
 	router.Handle("/players/", http.HandlerFunc(serv.playersHandler))
 
@@ -73,4 +76,13 @@ func (p *PlayersScoreServer) playersHandler(w http.ResponseWriter, r *http.Reque
 	case http.MethodGet:
 		p.getScore(w, player)
 	}
+}
+
+func (p *PlayersScoreServer) newGameHandler(w http.ResponseWriter, r *http.Request) {
+	tmpl, err := template.ParseFiles("game.html")
+	if err != nil {
+		http.Error(w, fmt.Sprintf("problem loading template %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
+	tmpl.Execute(w, nil)
 }
