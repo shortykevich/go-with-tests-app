@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"strings"
 	"testing"
+	"time"
 )
 
 func AssertGameNotStarted(t testing.TB, game *GameSpy) {
@@ -15,9 +16,23 @@ func AssertGameNotStarted(t testing.TB, game *GameSpy) {
 
 func AssertFinishCalledWith(t testing.TB, game *GameSpy, want string) {
 	t.Helper()
-	if game.FinishCalledWith != want {
+	passed := retryUntil(500*time.Millisecond, func() bool {
+		return game.FinishCalledWith == want
+	})
+
+	if !passed {
 		t.Errorf("got %s but expected %s", game.FinishCalledWith, want)
 	}
+}
+
+func retryUntil(d time.Duration, f func() bool) bool {
+	deadline := time.Now().Add(d)
+	for time.Now().Before(deadline) {
+		if f() {
+			return true
+		}
+	}
+	return false
 }
 
 func AssertMessagesSentToUser(t testing.TB, stdout *bytes.Buffer, messages ...string) {
