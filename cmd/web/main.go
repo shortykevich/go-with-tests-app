@@ -20,7 +20,10 @@ func main() {
 	}
 	defer close()
 
-	handler := webserver.NewPlayersScoreServer(store)
+	handler, err := webserver.NewPlayersScoreServer(store)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	log.Printf("Listening on port %v", port)
 	log.Fatal(http.ListenAndServe(port, handler))

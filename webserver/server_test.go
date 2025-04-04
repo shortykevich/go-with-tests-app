@@ -6,8 +6,11 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/shortykevich/go-with-tests-app/db/leaguedb"
 	tutils "github.com/shortykevich/go-with-tests-app/tests/utils"
 )
@@ -21,7 +24,8 @@ func TestPlayersScores(t *testing.T) {
 		WinCalls: []string{},
 	}
 
-	server := NewPlayersScoreServer(storage)
+	server, err := NewPlayersScoreServer(storage)
+	tutils.AssertNoError(t, err)
 
 	tests := []struct {
 		name               string
@@ -67,7 +71,8 @@ func TestStoreWins(t *testing.T) {
 		Scores:   map[string]int{},
 		WinCalls: []string{},
 	}
-	server := NewPlayersScoreServer(storage)
+	server, err := NewPlayersScoreServer(storage)
+	tutils.AssertNoError(t, err)
 
 	t.Run("Records wins when POST", func(t *testing.T) {
 		player := "Pepper"
@@ -96,7 +101,8 @@ func TestLeague(t *testing.T) {
 				"Bill":  10,
 			},
 		}
-		server := NewPlayersScoreServer(storage)
+		server, err := NewPlayersScoreServer(storage)
+		tutils.AssertNoError(t, err)
 
 		req := newLeagueRequest(t)
 		resp := httptest.NewRecorder()
@@ -114,7 +120,8 @@ func TestLeague(t *testing.T) {
 	})
 
 	t.Run("GET /game return 200", func(t *testing.T) {
-		server := NewPlayersScoreServer(tutils.NewStubStorage())
+		server, err := NewPlayersScoreServer(tutils.NewStubStorage())
+		tutils.AssertNoError(t, err)
 
 		req := newGameRequest()
 		resp := httptest.NewRecorder()
@@ -122,6 +129,25 @@ func TestLeague(t *testing.T) {
 		server.ServeHTTP(resp, req)
 
 		tutils.AssertStatus(t, resp, http.StatusOK)
+	})
+
+	t.Run("when we get a message over a websocket it is a winner of a game", func(t *testing.T) {
+		storage := tutils.NewStubStorage()
+		winner := "Ruth"
+		handler, err := NewPlayersScoreServer(storage)
+		tutils.AssertNoError(t, err)
+
+		server := httptest.NewServer(handler)
+		defer server.Close()
+
+		wsURL := fmt.Sprintf("ws%s/ws", strings.TrimPrefix(server.URL, "http"))
+
+		ws := mustDialWS(t, wsURL)
+		defer ws.Close()
+
+		writeWSMessage(t, ws, winner)
+		time.Sleep(10 * time.Millisecond)
+		tutils.AssertPlayerWin(t, storage, winner)
 	})
 }
 
@@ -154,4 +180,18 @@ func getLeagueFromResponse(t testing.TB, body io.Reader) (leag leaguedb.League) 
 		t.Fatalf("Unable to parse response from server %q into slice of Player, '%v'", body, err)
 	}
 	return
+}
+
+func mustDialWS(t *testing.T, wsURL string) *websocket.Conn {
+	ws, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if err != nil {
+		t.Fatalf("could not open a ws connection on %s %v", wsURL, err)
+	}
+	return ws
+}
+
+func writeWSMessage(t testing.TB, conn *websocket.Conn, msg string) {
+	if err := conn.WriteMessage(websocket.TextMessage, []byte(msg)); err != nil {
+		t.Fatalf("could not send message over ws connection %v", err)
+	}
 }

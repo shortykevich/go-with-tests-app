@@ -9,29 +9,48 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/gorilla/websocket"
 	"github.com/shortykevich/go-with-tests-app/db/leaguedb"
 )
 
-const jsonContentType = "application/json"
+const (
+	jsonContentType  = "application/json"
+	htmlTemplatePath = "game.html"
+)
+
+var wsUpgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+}
 
 type PlayersScoreServer struct {
 	storage leaguedb.PlayersStorage
 	http.Handler
+	template *template.Template
 }
 
-func NewPlayersScoreServer(storage leaguedb.PlayersStorage) *PlayersScoreServer {
+func NewPlayersScoreServer(storage leaguedb.PlayersStorage) (*PlayersScoreServer, error) {
 	serv := &PlayersScoreServer{
 		storage: storage,
 	}
 
+	tmpl, err := template.ParseFiles(htmlTemplatePath)
+	if err != nil {
+		return nil, fmt.Errorf("problem opening %s %v", htmlTemplatePath, err)
+	}
+
+	serv.template = tmpl
+	serv.storage = storage
+
 	router := http.NewServeMux()
+	router.Handle("/ws", http.HandlerFunc(serv.webSocket))
 	router.Handle("/game", http.HandlerFunc(serv.newGameHandler))
 	router.Handle("/league", http.HandlerFunc(serv.leagueHandler))
 	router.Handle("/players/", http.HandlerFunc(serv.playersHandler))
 
 	serv.Handler = router
 
-	return serv
+	return serv, nil
 }
 
 func (p *PlayersScoreServer) postWin(w http.ResponseWriter, name string) {
@@ -79,10 +98,11 @@ func (p *PlayersScoreServer) playersHandler(w http.ResponseWriter, r *http.Reque
 }
 
 func (p *PlayersScoreServer) newGameHandler(w http.ResponseWriter, r *http.Request) {
-	tmpl, err := template.ParseFiles("game.html")
-	if err != nil {
-		http.Error(w, fmt.Sprintf("problem loading template %s", err.Error()), http.StatusInternalServerError)
-		return
-	}
-	tmpl.Execute(w, nil)
+	p.template.Execute(w, nil)
+}
+
+func (p *PlayersScoreServer) webSocket(w http.ResponseWriter, r *http.Request) {
+	conn, _ := wsUpgrader.Upgrade(w, r, nil)
+	_, winnerMsg, _ := conn.ReadMessage()
+	p.storage.PostPlayerScore(string(winnerMsg))
 }

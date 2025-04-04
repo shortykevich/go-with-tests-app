@@ -17,7 +17,9 @@ func TestRecordingWinsAndRetrievingThem(t *testing.T) {
 
 	tutils.AssertNoError(t, err)
 
-	server := NewPlayersScoreServer(store)
+	server, err := NewPlayersScoreServer(store)
+	tutils.AssertNoError(t, err)
+
 	player := "Pepper"
 
 	server.ServeHTTP(httptest.NewRecorder(), newPostRequest(player))
