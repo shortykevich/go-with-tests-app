@@ -16,21 +16,6 @@ var dummyStdIn = &bytes.Buffer{}
 var dummyStdOut = &bytes.Buffer{}
 var dummySpyAlerter = &SpyBlindAlerter{}
 
-type GameSpy struct {
-	StartedWith  int
-	FinishedWith string
-	StartCalled  bool
-}
-
-func (g *GameSpy) Start(numberOfPlayers int, to io.Writer) {
-	g.StartCalled = true
-	g.StartedWith = numberOfPlayers
-}
-
-func (g *GameSpy) Finish(winner string) {
-	g.FinishedWith = winner
-}
-
 func TestCLI(t *testing.T) {
 	cases := []string{
 		"Chris",
@@ -40,7 +25,7 @@ func TestCLI(t *testing.T) {
 		t.Run(fmt.Sprintf("record %s win from user input", name), func(t *testing.T) {
 			input := userInput("5", fmt.Sprintf("%s wins\n", name))
 			storage := tutils.NewStubStorage()
-			game := NewGame(dummySpyAlerter, storage)
+			game := NewTexasHoldem(dummySpyAlerter, storage)
 			cli := NewCLI(input, dummyStdOut, game)
 
 			cli.PlayPoker()
@@ -54,11 +39,11 @@ func TestBlindAlerter(t *testing.T) {
 		in := userInput("5", "Chris wins")
 		playerStorage := tutils.NewStubStorage()
 		blindAlerter := &SpyBlindAlerter{}
-		game := NewGame(blindAlerter, playerStorage)
+		game := NewTexasHoldem(blindAlerter, playerStorage)
 		cli := NewCLI(in, dummyStdOut, game)
 		cli.PlayPoker()
 
-		cases := []scheduledAlert{
+		cases := []ScheduledAlert{
 			{0 * time.Second, 100},
 			{10 * time.Minute, 200},
 			{20 * time.Minute, 300},
@@ -80,19 +65,19 @@ func TestBlindAlerter(t *testing.T) {
 		out := &bytes.Buffer{}
 		in := userInput("7")
 		blindAlerter := &SpyBlindAlerter{}
-		game := NewGame(blindAlerter, playerStorage)
+		game := NewTexasHoldem(blindAlerter, playerStorage)
 		cli := NewCLI(in, out, game)
 
 		cli.PlayPoker()
 
 		got := out.String()
-		want := numPlayerPrompt
+		want := NumPlayerPrompt
 
 		if got != want {
 			t.Errorf("got %q, want %q", got, want)
 		}
 
-		cases := []scheduledAlert{
+		cases := []ScheduledAlert{
 			{0 * time.Second, 100},
 			{12 * time.Minute, 200},
 			{24 * time.Minute, 300},
@@ -105,11 +90,11 @@ func TestBlindAlerter(t *testing.T) {
 	t.Run("schedules alerts on game start for 7 players", func(t *testing.T) {
 		playerStorage := tutils.NewStubStorage()
 		blindAlerter := &SpyBlindAlerter{}
-		game := NewGame(blindAlerter, playerStorage)
+		game := NewTexasHoldem(blindAlerter, playerStorage)
 
 		game.Start(7, io.Discard)
 
-		cases := []scheduledAlert{
+		cases := []ScheduledAlert{
 			{0 * time.Second, 100},
 			{12 * time.Minute, 200},
 			{24 * time.Minute, 300},
@@ -127,8 +112,8 @@ func TestBlindAlerter(t *testing.T) {
 		cli := NewCLI(in, stdout, game)
 		cli.PlayPoker()
 
-		assertMessagesSentToUser(t, stdout, stdout.String())
-		assertGameStartedWith(t, game, 7)
+		AssertMessagesSentToUser(t, stdout, stdout.String())
+		AssertGameStartedWith(t, game, 7)
 	})
 
 	t.Run("it prints an error when a non numeric value is entered and does not start the game", func(t *testing.T) {
@@ -139,8 +124,8 @@ func TestBlindAlerter(t *testing.T) {
 		cli := NewCLI(in, stdout, game)
 		cli.PlayPoker()
 
-		assertMessagesSentToUser(t, stdout, numPlayerPrompt, wrongPlayerInputErrMsg)
-		assertGameNotStarted(t, game)
+		AssertMessagesSentToUser(t, stdout, NumPlayerPrompt, WrongPlayerInputErrMsg)
+		AssertGameNotStarted(t, game)
 	})
 
 	t.Run("start game with 3 players and finish game with 'Chris' as winner", func(t *testing.T) {
@@ -152,9 +137,9 @@ func TestBlindAlerter(t *testing.T) {
 
 		cli.PlayPoker()
 
-		assertMessagesSentToUser(t, stdout, numPlayerPrompt)
-		assertGameStartedWith(t, game, 3)
-		assertFinishCalledWith(t, game, "Chris")
+		AssertMessagesSentToUser(t, stdout, NumPlayerPrompt)
+		AssertGameStartedWith(t, game, 3)
+		AssertFinishCalledWith(t, game, "Chris")
 	})
 
 	t.Run("start game with 8 players and record 'Cleo' as winner", func(t *testing.T) {
@@ -165,60 +150,21 @@ func TestBlindAlerter(t *testing.T) {
 
 		cli.PlayPoker()
 
-		assertGameStartedWith(t, game, 8)
-		assertFinishCalledWith(t, game, "Cleo")
+		AssertGameStartedWith(t, game, 8)
+		AssertFinishCalledWith(t, game, "Cleo")
 	})
 }
 
 func TestGame_Finish(t *testing.T) {
 	store := tutils.NewStubStorage()
-	game := NewGame(dummyBlindAlerter, store)
+	game := NewTexasHoldem(dummyBlindAlerter, store)
 	winner := "Ruth"
 
 	game.Finish(winner)
 	tutils.AssertPlayerWin(t, store, winner)
 }
 
-func assertGameNotStarted(t testing.TB, game *GameSpy) {
-	t.Helper()
-	if game.StartCalled {
-		t.Errorf("game should not have started")
-	}
-}
-
-func assertFinishCalledWith(t testing.TB, game *GameSpy, want string) {
-	t.Helper()
-	if game.FinishedWith != want {
-		t.Errorf("got %s but expected %s", game.FinishedWith, want)
-	}
-}
-
-func assertMessagesSentToUser(t testing.TB, stdout *bytes.Buffer, messages ...string) {
-	t.Helper()
-	want := strings.Join(messages, "")
-	got := stdout.String()
-	if got != want {
-		t.Errorf("got %q sent to stdout but expected %+v", got, messages)
-	}
-}
-
-func assertGameStartedWith(t testing.TB, game *GameSpy, want int) {
-	t.Helper()
-	if game.StartedWith != want {
-		t.Errorf("wanted Start called with %d but got %d", want, game.StartedWith)
-	}
-}
-
-func assertScheduledAlert(t testing.TB, got, want scheduledAlert) {
-	if got.amount != want.amount {
-		t.Errorf("got amount %d, want %d", got.amount, want.amount)
-	}
-	if got.at != want.at {
-		t.Errorf("got scheduled time of %v, want %v", got.at, want.at)
-	}
-}
-
-func checkSchedulingCases(t *testing.T, cases []scheduledAlert, alerter *SpyBlindAlerter) {
+func checkSchedulingCases(t *testing.T, cases []ScheduledAlert, alerter *SpyBlindAlerter) {
 	t.Helper()
 	for i, want := range cases {
 		t.Run(fmt.Sprint(want), func(t *testing.T) {
@@ -226,7 +172,7 @@ func checkSchedulingCases(t *testing.T, cases []scheduledAlert, alerter *SpyBlin
 				t.Fatalf("alert %d was not scheduled %v", i, alerter.alerts)
 			}
 			got := alerter.alerts[i]
-			assertScheduledAlert(t, got, want)
+			AssertScheduledAlert(t, got, want)
 		})
 	}
 }

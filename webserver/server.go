@@ -11,6 +11,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/shortykevich/go-with-tests-app/db/leaguedb"
+	"github.com/shortykevich/go-with-tests-app/poker"
 )
 
 const (
@@ -27,12 +28,15 @@ type PlayersScoreServer struct {
 	storage leaguedb.PlayersStorage
 	http.Handler
 	template *template.Template
+	game     poker.Game
 }
 
-func NewPlayersScoreServer(storage leaguedb.PlayersStorage) (*PlayersScoreServer, error) {
-	serv := &PlayersScoreServer{
-		storage: storage,
-	}
+type playerServerWS struct {
+	*websocket.Conn
+}
+
+func NewPlayersScoreServer(storage leaguedb.PlayersStorage, game poker.Game) (*PlayersScoreServer, error) {
+	serv := &PlayersScoreServer{}
 
 	tmpl, err := template.ParseFiles(htmlTemplatePath)
 	if err != nil {
@@ -41,6 +45,7 @@ func NewPlayersScoreServer(storage leaguedb.PlayersStorage) (*PlayersScoreServer
 
 	serv.template = tmpl
 	serv.storage = storage
+	serv.game = game
 
 	router := http.NewServeMux()
 	router.Handle("/ws", http.HandlerFunc(serv.webSocket))
@@ -102,7 +107,39 @@ func (p *PlayersScoreServer) newGameHandler(w http.ResponseWriter, r *http.Reque
 }
 
 func (p *PlayersScoreServer) webSocket(w http.ResponseWriter, r *http.Request) {
-	conn, _ := wsUpgrader.Upgrade(w, r, nil)
-	_, winnerMsg, _ := conn.ReadMessage()
-	p.storage.PostPlayerScore(string(winnerMsg))
+	ws := newPlayerServerWS(w, r)
+
+	numOfPlayersPrompt := ws.WaitForMsg()
+	numOfPlayers, _ := strconv.Atoi(numOfPlayersPrompt)
+	p.game.Start(numOfPlayers, ws)
+
+	winner := ws.WaitForMsg()
+	p.game.Finish(string(winner))
+}
+
+func newPlayerServerWS(w http.ResponseWriter, r *http.Request) *playerServerWS {
+	conn, err := wsUpgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Printf("problem upgrading connection to WebSockets %v\n", err)
+	}
+
+	return &playerServerWS{Conn: conn}
+}
+
+func (w *playerServerWS) WaitForMsg() string {
+	_, msg, err := w.ReadMessage()
+	if err != nil {
+		log.Printf("error reading from websocket %v\n", err)
+	}
+	return string(msg)
+}
+
+func (w *playerServerWS) Write(p []byte) (n int, err error) {
+	err = w.WriteMessage(websocket.TextMessage, p)
+
+	if err != nil {
+		return 0, err
+	}
+
+	return len(p), nil
 }

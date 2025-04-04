@@ -2,7 +2,6 @@ package poker
 
 import (
 	"io"
-	"os"
 	"time"
 
 	"github.com/shortykevich/go-with-tests-app/db/leaguedb"
@@ -18,7 +17,7 @@ type TexasHoldem struct {
 	storage leaguedb.PlayersStorage
 }
 
-func NewGame(alerter BlindAlerter, storage leaguedb.PlayersStorage) *TexasHoldem {
+func NewTexasHoldem(alerter BlindAlerter, storage leaguedb.PlayersStorage) *TexasHoldem {
 	return &TexasHoldem{
 		alerter: alerter,
 		storage: storage,
@@ -26,12 +25,12 @@ func NewGame(alerter BlindAlerter, storage leaguedb.PlayersStorage) *TexasHoldem
 }
 
 func (g *TexasHoldem) Start(numOfPlayers int, to io.Writer) {
-	blindInc := time.Duration(baseTime+numOfPlayers) * time.Minute
+	blindInc := time.Duration(BaseTime+numOfPlayers) * time.Minute
 
 	blinds := []int{100, 200, 300, 400, 500, 600, 800, 1000, 2000, 4000, 8000}
 	blindTime := 0 * time.Second
 	for _, blind := range blinds {
-		g.alerter.ScheduleAlertAt(blindTime, blind, os.Stdout)
+		g.alerter.ScheduleAlertAt(blindTime, blind, to)
 		blindTime += blindInc
 	}
 }

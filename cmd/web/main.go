@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	fss "github.com/shortykevich/go-with-tests-app/db/fs_storage"
+	"github.com/shortykevich/go-with-tests-app/poker"
 	"github.com/shortykevich/go-with-tests-app/webserver"
 )
 
@@ -14,15 +15,17 @@ const (
 )
 
 func main() {
-	store, close, err := fss.FileSystemStorageFromFile(dbFileName)
+	storage, close, err := fss.FileSystemStorageFromFile(dbFileName)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("problem opening %s %v", dbFileName, err)
 	}
 	defer close()
 
-	handler, err := webserver.NewPlayersScoreServer(store)
+	game := poker.NewTexasHoldem(poker.BlindAlerterFunc(poker.Alerter), storage)
+
+	handler, err := webserver.NewPlayersScoreServer(storage, game)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("problem creating player server %v", err)
 	}
 
 	log.Printf("Listening on port %v", port)

@@ -12,7 +12,13 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/shortykevich/go-with-tests-app/db/leaguedb"
+	"github.com/shortykevich/go-with-tests-app/poker"
 	tutils "github.com/shortykevich/go-with-tests-app/tests/utils"
+)
+
+var (
+	dummyGame = &poker.GameSpy{}
+	tenMS     = 10 * time.Millisecond
 )
 
 func TestPlayersScores(t *testing.T) {
@@ -24,7 +30,7 @@ func TestPlayersScores(t *testing.T) {
 		WinCalls: []string{},
 	}
 
-	server, err := NewPlayersScoreServer(storage)
+	server, err := NewPlayersScoreServer(storage, dummyGame)
 	tutils.AssertNoError(t, err)
 
 	tests := []struct {
@@ -71,7 +77,7 @@ func TestStoreWins(t *testing.T) {
 		Scores:   map[string]int{},
 		WinCalls: []string{},
 	}
-	server, err := NewPlayersScoreServer(storage)
+	server, err := NewPlayersScoreServer(storage, dummyGame)
 	tutils.AssertNoError(t, err)
 
 	t.Run("Records wins when POST", func(t *testing.T) {
@@ -101,7 +107,7 @@ func TestLeague(t *testing.T) {
 				"Bill":  10,
 			},
 		}
-		server, err := NewPlayersScoreServer(storage)
+		server, err := NewPlayersScoreServer(storage, dummyGame)
 		tutils.AssertNoError(t, err)
 
 		req := newLeagueRequest(t)
@@ -120,7 +126,7 @@ func TestLeague(t *testing.T) {
 	})
 
 	t.Run("GET /game return 200", func(t *testing.T) {
-		server, err := NewPlayersScoreServer(tutils.NewStubStorage())
+		server, err := NewPlayersScoreServer(tutils.NewStubStorage(), dummyGame)
 		tutils.AssertNoError(t, err)
 
 		req := newGameRequest()
@@ -131,24 +137,47 @@ func TestLeague(t *testing.T) {
 		tutils.AssertStatus(t, resp, http.StatusOK)
 	})
 
-	t.Run("when we get a message over a websocket it is a winner of a game", func(t *testing.T) {
+	t.Run("start a game with 3 players and declare Ruth the winner", func(t *testing.T) {
+		wantedBlindAlert := "Blind is 100"
 		storage := tutils.NewStubStorage()
+		game := &poker.GameSpy{BlindAlert: []byte(wantedBlindAlert)}
 		winner := "Ruth"
-		handler, err := NewPlayersScoreServer(storage)
-		tutils.AssertNoError(t, err)
 
-		server := httptest.NewServer(handler)
-		defer server.Close()
-
+		server := httptest.NewServer(mustMakePlayerServer(t, storage, game))
 		wsURL := fmt.Sprintf("ws%s/ws", strings.TrimPrefix(server.URL, "http"))
-
 		ws := mustDialWS(t, wsURL)
-		defer ws.Close()
 
+		defer func() {
+			ws.Close()
+			server.Close()
+		}()
+
+		writeWSMessage(t, ws, "3")
 		writeWSMessage(t, ws, winner)
-		time.Sleep(10 * time.Millisecond)
-		tutils.AssertPlayerWin(t, storage, winner)
+
+		time.Sleep(tenMS)
+
+		poker.AssertGameStartedWith(t, game, 3)
+		poker.AssertFinishCalledWith(t, game, winner)
+		within(t, tenMS, func() { assertWebsocketGotMsg(t, ws, wantedBlindAlert) })
 	})
+}
+
+func within(t testing.TB, d time.Duration, assert func()) {
+	t.Helper()
+
+	done := make(chan struct{}, 1)
+
+	go func() {
+		assert()
+		done <- struct{}{}
+	}()
+
+	select {
+	case <-time.After(d):
+		t.Error("timed out")
+	case <-done:
+	}
 }
 
 func newGameRequest() *http.Request {
@@ -182,6 +211,14 @@ func getLeagueFromResponse(t testing.TB, body io.Reader) (leag leaguedb.League) 
 	return
 }
 
+func mustMakePlayerServer(t *testing.T, store leaguedb.PlayersStorage, game poker.Game) *PlayersScoreServer {
+	server, err := NewPlayersScoreServer(store, game)
+	if err != nil {
+		t.Fatal("problem creating player server", err)
+	}
+	return server
+}
+
 func mustDialWS(t *testing.T, wsURL string) *websocket.Conn {
 	ws, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
 	if err != nil {
@@ -193,5 +230,12 @@ func mustDialWS(t *testing.T, wsURL string) *websocket.Conn {
 func writeWSMessage(t testing.TB, conn *websocket.Conn, msg string) {
 	if err := conn.WriteMessage(websocket.TextMessage, []byte(msg)); err != nil {
 		t.Fatalf("could not send message over ws connection %v", err)
+	}
+}
+
+func assertWebsocketGotMsg(t *testing.T, ws *websocket.Conn, want string) {
+	_, msg, _ := ws.ReadMessage()
+	if string(msg) != want {
+		t.Errorf(`got "%s", want "%s"`, string(msg), want)
 	}
 }

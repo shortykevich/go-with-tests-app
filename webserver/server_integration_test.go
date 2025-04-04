@@ -17,7 +17,7 @@ func TestRecordingWinsAndRetrievingThem(t *testing.T) {
 
 	tutils.AssertNoError(t, err)
 
-	server, err := NewPlayersScoreServer(store)
+	server, err := NewPlayersScoreServer(store, dummyGame)
 	tutils.AssertNoError(t, err)
 
 	player := "Pepper"

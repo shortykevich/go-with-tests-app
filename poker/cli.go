@@ -10,14 +10,14 @@ import (
 )
 
 const (
-	baseTime               = 5
-	numPlayerPrompt        = "Please enter the number of players: "
-	wrongPlayerInputErrMsg = "Bad value received for number of players, please try again with a number\n"
+	BaseTime               = 5
+	NumPlayerPrompt        = "Please enter the number of players: "
+	WrongPlayerInputErrMsg = "Bad value received for number of players, please try again with a number\n"
 )
 
-type scheduledAlert struct {
-	at     time.Duration
-	amount int
+type ScheduledAlert struct {
+	At     time.Duration
+	Amount int
 }
 
 type CLI struct {
@@ -27,15 +27,34 @@ type CLI struct {
 }
 
 type SpyBlindAlerter struct {
-	alerts []scheduledAlert
+	alerts []ScheduledAlert
 }
 
-func (s scheduledAlert) String() string {
-	return fmt.Sprintf("%d chips at %v", s.amount, s.at)
+type GameSpy struct {
+	StartCalled       bool
+	StartedCalledWith int
+	BlindAlert        []byte
+
+	FinishedCalled   bool
+	FinishCalledWith string
+}
+
+func (g *GameSpy) Start(numberOfPlayers int, to io.Writer) {
+	g.StartCalled = true
+	g.StartedCalledWith = numberOfPlayers
+	to.Write(g.BlindAlert)
+}
+
+func (g *GameSpy) Finish(winner string) {
+	g.FinishCalledWith = winner
+}
+
+func (s ScheduledAlert) String() string {
+	return fmt.Sprintf("%d chips at %v", s.Amount, s.At)
 }
 
 func (s *SpyBlindAlerter) ScheduleAlertAt(at time.Duration, amount int, to io.Writer) {
-	s.alerts = append(s.alerts, scheduledAlert{at, amount})
+	s.alerts = append(s.alerts, ScheduledAlert{at, amount})
 }
 
 func NewCLI(in io.Reader, out io.Writer, game Game) *CLI {
@@ -47,12 +66,12 @@ func NewCLI(in io.Reader, out io.Writer, game Game) *CLI {
 }
 
 func (c *CLI) PlayPoker() {
-	fmt.Fprint(c.out, numPlayerPrompt)
+	fmt.Fprint(c.out, NumPlayerPrompt)
 
 	trimmedPrompt := strings.Trim(c.readInput(), "\n")
 	numOfPlayers, err := strconv.Atoi(trimmedPrompt)
 	if err != nil {
-		fmt.Fprint(c.out, wrongPlayerInputErrMsg)
+		fmt.Fprint(c.out, WrongPlayerInputErrMsg)
 		return
 	}
 
@@ -69,7 +88,7 @@ func (c *CLI) readInput() string {
 
 func (c *CLI) awaitNumOfPlayersPrompt() int {
 	for {
-		fmt.Fprint(c.out, numPlayerPrompt)
+		fmt.Fprint(c.out, NumPlayerPrompt)
 
 		trimmedPrompt := strings.Trim(c.readInput(), "\n")
 		num, err := strconv.Atoi(trimmedPrompt)
