@@ -1,13 +1,15 @@
 package poker
 
 import (
+	"io"
+	"os"
 	"time"
 
 	"github.com/shortykevich/go-with-tests-app/db/leaguedb"
 )
 
 type Game interface {
-	Start(int)
+	Start(int, io.Writer)
 	Finish(string)
 }
 
@@ -23,13 +25,13 @@ func NewGame(alerter BlindAlerter, storage leaguedb.PlayersStorage) *TexasHoldem
 	}
 }
 
-func (g *TexasHoldem) Start(numOfPlayers int) {
+func (g *TexasHoldem) Start(numOfPlayers int, to io.Writer) {
 	blindInc := time.Duration(baseTime+numOfPlayers) * time.Minute
 
 	blinds := []int{100, 200, 300, 400, 500, 600, 800, 1000, 2000, 4000, 8000}
 	blindTime := 0 * time.Second
 	for _, blind := range blinds {
-		g.alerter.ScheduleAlertAt(blindTime, blind)
+		g.alerter.ScheduleAlertAt(blindTime, blind, os.Stdout)
 		blindTime += blindInc
 	}
 }

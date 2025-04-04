@@ -34,7 +34,7 @@ func (s scheduledAlert) String() string {
 	return fmt.Sprintf("%d chips at %v", s.amount, s.at)
 }
 
-func (s *SpyBlindAlerter) ScheduleAlertAt(at time.Duration, amount int) {
+func (s *SpyBlindAlerter) ScheduleAlertAt(at time.Duration, amount int, to io.Writer) {
 	s.alerts = append(s.alerts, scheduledAlert{at, amount})
 }
 
@@ -56,7 +56,7 @@ func (c *CLI) PlayPoker() {
 		return
 	}
 
-	c.game.Start(numOfPlayers)
+	c.game.Start(numOfPlayers, c.out)
 
 	userInput := c.readInput()
 	c.game.Finish(getTheName(userInput))

@@ -22,7 +22,7 @@ type GameSpy struct {
 	StartCalled  bool
 }
 
-func (g *GameSpy) Start(numberOfPlayers int) {
+func (g *GameSpy) Start(numberOfPlayers int, to io.Writer) {
 	g.StartCalled = true
 	g.StartedWith = numberOfPlayers
 }
@@ -107,7 +107,7 @@ func TestBlindAlerter(t *testing.T) {
 		blindAlerter := &SpyBlindAlerter{}
 		game := NewGame(blindAlerter, playerStorage)
 
-		game.Start(7)
+		game.Start(7, io.Discard)
 
 		cases := []scheduledAlert{
 			{0 * time.Second, 100},

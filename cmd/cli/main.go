@@ -5,8 +5,8 @@ import (
 	"log"
 	"os"
 
-	poker "github.com/shortykevich/go-with-tests-app/cli"
 	fss "github.com/shortykevich/go-with-tests-app/db/fs_storage"
+	"github.com/shortykevich/go-with-tests-app/poker"
 )
 
 var dummyAlerter = &poker.SpyBlindAlerter{}
@@ -23,7 +23,7 @@ func main() {
 	}
 	defer close()
 
-	game := poker.NewGame(poker.BlindAlerterFunc(poker.StdOutAlerter), storage)
+	game := poker.NewGame(poker.BlindAlerterFunc(poker.Alerter), storage)
 	cli := poker.NewCLI(os.Stdin, os.Stdout, game)
 	cli.PlayPoker()
 }
